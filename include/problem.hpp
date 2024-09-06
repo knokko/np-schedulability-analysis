@@ -1,6 +1,7 @@
 #ifndef NP_PROBLEM_HPP
 #define NP_PROBLEM_HPP
 
+#include "reconfiguration/agent.hpp"
 #include "jobs.hpp"
 #include "precedence.hpp"
 #include "aborts.hpp"

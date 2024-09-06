@@ -49,10 +49,11 @@ namespace NP {
 
 			static State_space* explore(
 				const Problem& prob,
-				const Analysis_options& opts)
+				const Analysis_options& opts,
+				Reconfiguration::Agent<Time> *reconfiguration_agent = nullptr)
 			{
-				State_space* s = new State_space(prob.jobs, prob.prec, prob.aborts, prob.num_processors, 
-					opts.timeout, opts.max_depth, opts.early_exit, opts.use_supernodes);
+				State_space* s = new State_space(prob.jobs, prob.prec, prob.aborts, prob.num_processors,
+					opts.timeout, opts.max_depth, opts.early_exit, opts.use_supernodes, reconfiguration_agent);
 				s->be_naive = opts.be_naive;
 				s->cpu_time.start();
 				s->explore();
@@ -310,6 +311,7 @@ namespace NP {
 			const double timeout;
 			const unsigned int num_cpus;
 			bool use_supernodes = true;
+			Reconfiguration::Agent<Time> *reconfiguration_agent;
 
 			State_space(const Workload& jobs,
 				const Precedence_constraints& edges,
@@ -318,7 +320,8 @@ namespace NP {
 				double max_cpu_time = 0,
 				unsigned int max_depth = 0,
 				bool early_exit = true,
-				bool use_supernodes = true)
+				bool use_supernodes = true,
+				Reconfiguration::Agent<Time> *reconfiguration_agent = nullptr)
 				: jobs(jobs)
 				, aborted(false)
 				, timed_out(false)
@@ -347,6 +350,7 @@ namespace NP {
 				, early_exit(early_exit)
 				, abort_actions(jobs.size(), NULL)
 				, use_supernodes(use_supernodes)
+				, reconfiguration_agent(reconfiguration_agent)
 #ifdef CONFIG_PARALLEL
 				, partial_rta(jobs.size())
 #endif
@@ -410,18 +414,19 @@ namespace NP {
 			}
 
 			void update_finish_times(
-				Response_times& r, const Job<Time>& j, Interval<Time> range)
+				Response_times& r, const Node &n, const Job<Time>& j, Interval<Time> range)
 			{
 				update_finish_times(r, j.get_job_index(), range);
 				if (j.exceeds_deadline(range.upto())) {
 					observed_deadline_miss = true;
+					if (reconfiguration_agent) reconfiguration_agent->missed_deadline(n, j);
 
 					if (early_exit)
 						aborted = true;
 				}
 			}
 
-			void update_finish_times(const Job<Time>& j, Interval<Time> range)
+			void update_finish_times(const Node &n, const Job<Time>& j, Interval<Time> range)
 			{
 				Response_times& r =
 #ifdef CONFIG_PARALLEL
@@ -429,7 +434,7 @@ namespace NP {
 #else
 					rta;
 #endif
-				update_finish_times(r, j, range);
+				update_finish_times(r, n, j, range);
 			}
 
 
@@ -472,14 +477,14 @@ namespace NP {
 								// create a dummy node for explanation purposes
 								auto frange = new_n.get_last_state()->core_availability(pmin) + j.get_cost(pmin);
 								Node& next =
-									new_node(new_n, j, j.get_job_index(), 0, 0, 0);
+									new_node(new_n, j, j.get_job_index(), 0, 0, 0, nullptr); // Maybe give attachment
 								//const CoreAvailability empty_cav = {};
 								State& next_s = new_state(*new_n.get_last_state(), j.get_job_index(), predecessors_of(j), frange, frange, new_n.get_scheduled_jobs(), successors, predecessors_suspensions, 0, pmin);
 								next.add_state(&next_s);
 								num_states++;
 
 								// update response times
-								update_finish_times(j, frange);
+								update_finish_times(new_n, j, frange);
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 								edges.emplace_back(&j, &new_n, &next, frange, pmin);
 #endif
@@ -509,7 +514,10 @@ namespace NP {
 
 				Time next_certain_release = std::min(next_certain_seq_release, next_certain_gang_release);
 
-				Node& n = new_node(num_cores, jobs_by_earliest_arrival.begin()->first, next_certain_release, next_certain_seq_release);
+				Reconfiguration::Attachment *attachment = nullptr;
+				if (reconfiguration_agent) attachment = reconfiguration_agent->create_initial_node_attachment();
+
+				Node& n = new_node(num_cores, jobs_by_earliest_arrival.begin()->first, next_certain_release, next_certain_seq_release, attachment);
 				State& s = new_state(num_cores, next_certain_gang_release);
 				n.add_state(&s);
 				num_states++;
@@ -1086,7 +1094,7 @@ namespace NP {
 				Node& next_node = new_node_at(acc, n, j, j.get_job_index(),
 					earliest_possible_job_release(n, j),
 					earliest_certain_source_job_release(n, j),
-					earliest_certain_sequential_source_job_release(n, j));
+					earliest_certain_sequential_source_job_release(n, j), nullptr);
 #else
 				const auto pair_it = nodes_by_key.find(key);
 				if (pair_it != nodes_by_key.end())
@@ -1107,10 +1115,14 @@ namespace NP {
 					}
 				}
 
+				Reconfiguration::Attachment *attachment = nullptr;
+				if (reconfiguration_agent) attachment = reconfiguration_agent->create_next_node_attachment(n, j);
+
 				Node& next_node = new_node(n, j, j.get_job_index(),
 					earliest_possible_job_release(n, j),
 					earliest_certain_source_job_release(n, j),
-					earliest_certain_sequential_source_job_release(n, j));
+					earliest_certain_sequential_source_job_release(n, j),
+					attachment);
 #endif
 
 				next_node.add_state(&st);
@@ -1190,7 +1202,7 @@ namespace NP {
 						dispatched_one = true;						
 
 						// update finish-time estimates
-						update_finish_times(j, ftimes);
+						update_finish_times(n, j, ftimes);
 
 						if (use_supernodes == false)
 						{
@@ -1244,7 +1256,7 @@ namespace NP {
 #else
 							// If be_naive, a new node and a new state should be created for each new job dispatch.
 							if (be_naive)
-								next = &(new_node(n, j, j.get_job_index(), earliest_possible_job_release(n, j), earliest_certain_source_job_release(n, j), earliest_certain_sequential_source_job_release(n, j)));
+								next = &(new_node(n, j, j.get_job_index(), earliest_possible_job_release(n, j), earliest_certain_source_job_release(n, j), earliest_certain_sequential_source_job_release(n, j), nullptr));
 
 							// if we do not have a pointer to a node with the same set of scheduled job yet,
 							// try to find an existing node with the same set of scheduled jobs. Otherwise, create one.
@@ -1264,7 +1276,7 @@ namespace NP {
 								}
 								// If there is no node yet, create one.
 								if (next == nullptr)
-									next = &(new_node(n, j, j.get_job_index(), earliest_possible_job_release(n, j), earliest_certain_source_job_release(n, j), earliest_certain_sequential_source_job_release(n, j)));
+									next = &(new_node(n, j, j.get_job_index(), earliest_possible_job_release(n, j), earliest_certain_source_job_release(n, j), earliest_certain_sequential_source_job_release(n, j), nullptr)); // TODO Create attachment
 							}
 #endif
 							// next should always exist at this point, possibly without states in it
@@ -1341,6 +1353,10 @@ namespace NP {
 					// then j will never be the next job dispached by the scheduler
 					if (t_high_wos <= j.earliest_arrival())
 						continue;
+
+					// The reconfiguration agent can forbid transitions
+					if (reconfiguration_agent && !reconfiguration_agent->is_allowed(n, j)) continue;
+
 					found_one |= dispatch(n, j, upbnd_t_wc, t_high_wos);
 				}
 
@@ -1349,6 +1365,7 @@ namespace NP {
 					// out of options and we didn't schedule all jobs
 					observed_deadline_miss = true;
 					aborted = true;
+					if (reconfiguration_agent) reconfiguration_agent->encountered_dead_end(n);
 				}
 			}
 
@@ -1388,8 +1405,7 @@ namespace NP {
 
 					check_depth_abort();
 					check_cpu_timeout();
-					if (aborted)
-						break;
+					if (aborted) break;
 
 #ifdef CONFIG_PARALLEL
 

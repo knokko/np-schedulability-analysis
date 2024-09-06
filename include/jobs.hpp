@@ -30,6 +30,10 @@ namespace NP {
 			return this->task == other.task && this->job == other.job;
 		}
 
+		bool operator!=(const JobID &other) const {
+			return this->task != other.task || this->job != other.job;
+		}
+
 		friend std::ostream& operator<< (std::ostream& stream, const JobID& id)
 		{
 			stream << "T" << id.task << "J" << id.job;
@@ -93,6 +97,16 @@ namespace NP {
 		{
 			exec_time.emplace(1, cost);
 			compute_hash();
+		}
+
+		void assume_pessimistic_arrival() {
+			arrival.make_pessimistic();
+		}
+
+		void assume_pessimistic_running_time() {
+			for (auto &entry : exec_time) {
+				entry.second.make_pessimistic();
+			}
 		}
 
 		hash_value_t get_key() const
