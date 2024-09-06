@@ -7,6 +7,7 @@
 
 #include <set>
 
+#include "reconfiguration/attachment.hpp"
 #include "config.h"
 #include "cache.hpp"
 #include "index_set.hpp"
@@ -642,13 +643,15 @@ namespace NP {
 			State_ref_queue states;
 
 		public:
+			Reconfiguration_node_attachment *attachment;
 
 			// initial node
 			Schedule_node(
 				unsigned int num_cores,
 				const Time next_earliest_release = 0,
 				const Time next_certain_source_job_release = Time_model::constants<Time>::infinity(), // the next time a job without predecessor is certainly released
-				const Time next_certain_sequential_source_job_release = Time_model::constants<Time>::infinity() // the next time a job without predecessor that can execute on a single core is certainly released
+				const Time next_certain_sequential_source_job_release = Time_model::constants<Time>::infinity(), // the next time a job without predecessor that can execute on a single core is certainly released
+				Reconfiguration_node_attachment *attachment = nullptr
 			)
 				: lookup_key{ 0 }
 				, num_cpus(num_cores)
@@ -660,6 +663,7 @@ namespace NP {
 				, next_certain_source_job_release{ next_certain_source_job_release }
 				, next_certain_sequential_source_job_release{ next_certain_sequential_source_job_release }
 				, next_certain_gang_source_job_disptach{ Time_model::constants<Time>::infinity() }
+				, attachment(attachment)
 			{
 			}
 
@@ -670,7 +674,8 @@ namespace NP {
 				std::size_t idx,
 				const Time next_earliest_release,
 				const Time next_certain_source_job_release, // the next time a job without predecessor is certainly released
-				const Time next_certain_sequential_source_job_release // the next time a job without predecessor that can execute on a single core is certainly released
+				const Time next_certain_sequential_source_job_release, // the next time a job without predecessor that can execute on a single core is certainly released
+				Reconfiguration_node_attachment *attachment
 			)
 				: scheduled_jobs{ from.scheduled_jobs, idx }
 				, lookup_key{ from.next_key(j) }
@@ -683,6 +688,7 @@ namespace NP {
 				, next_certain_successor_jobs_disptach{ Time_model::constants<Time>::infinity() }
 				, next_certain_sequential_source_job_release{ next_certain_sequential_source_job_release }
 				, next_certain_gang_source_job_disptach{ Time_model::constants<Time>::infinity() }
+				, attachment(attachment)
 			{
 			}
 
@@ -831,6 +837,7 @@ namespace NP {
 				{
 					if (result == false)
 					{
+						// TODO Optionally forbid merges between specific states?
 						if (state->try_to_merge(s, useJobFinishTimes))
 						{
 							// Update the node finish_time

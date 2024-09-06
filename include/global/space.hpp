@@ -402,8 +402,10 @@ namespace NP {
 				Response_times& r, const Job<Time>& j, Interval<Time> range)
 			{
 				update_finish_times(r, j.get_job_index(), range);
-				if (j.exceeds_deadline(range.upto()))
+				if (j.exceeds_deadline(range.upto())) {
 					aborted = true;
+					std::cout << "missed deadline\n";
+				}
 			}
 
 			void update_finish_times(const Job<Time>& j, Interval<Time> range)
@@ -454,13 +456,14 @@ namespace NP {
 							// create a dummy node for explanation purposes
 							auto frange = new_n.get_last_state()->core_availability(pmin) + j.get_cost(pmin);
 							Node& next =
-								new_node(new_n, j, j.get_job_index(), 0, 0, 0);
+								new_node(new_n, j, j.get_job_index(), 0, 0, 0, nullptr);
 							//const CoreAvailability empty_cav = {};
 							State& next_s = new_state(*new_n.get_last_state(), j.get_job_index(), predecessors_of(j), frange, frange, new_n.get_scheduled_jobs(), successors, predecessors_suspensions, 0, pmin);
 							next.add_state(&next_s);
 							num_states++;
 
 							// update response times
+							std::cout << "already aborted?\n";
 							update_finish_times(j, frange);
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 							edges.emplace_back(&j, &new_n, &next, frange, pmin);
@@ -490,7 +493,7 @@ namespace NP {
 
 				Time next_certain_release = std::min(next_certain_seq_release, next_certain_gang_release);
 
-				Node& n = new_node(num_cores, jobs_by_earliest_arrival.begin()->first, next_certain_release, next_certain_seq_release);
+				Node& n = new_node(num_cores, jobs_by_earliest_arrival.begin()->first, next_certain_release, next_certain_seq_release, nullptr);
 				State& s = new_state(num_cores, next_certain_gang_release);
 				n.add_state(&s);
 				num_states++;
@@ -1081,7 +1084,8 @@ namespace NP {
 				Node& next_node = new_node(n, j, j.get_job_index(),
 					earliest_possible_job_release(n, j),
 					earliest_certain_source_job_release(n, j),
-					earliest_certain_sequential_source_job_release(n, j));
+					earliest_certain_sequential_source_job_release(n, j),
+					nullptr);
 #endif
 
 				next_node.add_state(&st);
@@ -1137,6 +1141,7 @@ namespace NP {
 						Interval<Time> ftimes = st + j.get_cost(p);
 
 						// update finish-time estimates
+						// TODO Check for potential deadline miss
 						update_finish_times(j, ftimes);
 
 						if (use_supernodes == false)
@@ -1188,7 +1193,7 @@ namespace NP {
 #else
 							// If be_naive, a new node and a new state should be created for each new job dispatch.
 							if (be_naive)
-								next = &(new_node(n, j, j.get_job_index(), earliest_possible_job_release(n, j), earliest_certain_source_job_release(n, j), earliest_certain_sequential_source_job_release(n, j)));
+								next = &(new_node(n, j, j.get_job_index(), earliest_possible_job_release(n, j), earliest_certain_source_job_release(n, j), earliest_certain_sequential_source_job_release(n, j), nullptr));
 
 							// if we do not have a pointer to a node with the same set of scheduled job yet,
 							// try to find an existing node with the same set of scheduled jobs. Otherwise, create one.
@@ -1208,7 +1213,7 @@ namespace NP {
 								}
 								// If there is no node yet, create one.
 								if (next == nullptr)
-									next = &(new_node(n, j, j.get_job_index(), earliest_possible_job_release(n, j), earliest_certain_source_job_release(n, j), earliest_certain_sequential_source_job_release(n, j)));
+									next = &(new_node(n, j, j.get_job_index(), earliest_possible_job_release(n, j), earliest_certain_source_job_release(n, j), earliest_certain_sequential_source_job_release(n, j), nullptr));
 							}
 #endif
 							// next should always exist at this point, possibly without states in it
@@ -1327,8 +1332,10 @@ namespace NP {
 
 					check_depth_abort();
 					check_cpu_timeout();
-					if (aborted)
+					if (aborted) {
+						std::cout << "aborted\n";
 						break;
+					}
 
 #ifdef CONFIG_PARALLEL
 
