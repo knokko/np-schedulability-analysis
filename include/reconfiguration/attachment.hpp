@@ -3,10 +3,12 @@
 #include <vector>
 
 namespace NP {
-	class Reconfiguration_node_attachment {};
+	struct Reconfiguration_attachment {
+		virtual ~Reconfiguration_attachment() = default;
+	};
 
-	class Reconfiguration_node_job_sequence_attachment final : Reconfiguration_node_attachment {
-		std::vector<size_t> chosen_job_indices;
+	struct Reconfiguration_attachment_job_sequence final: Reconfiguration_attachment {
+		std::vector<unsigned long> chosen_job_ids;
 	};
 }
 

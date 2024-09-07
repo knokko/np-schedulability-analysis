@@ -20,6 +20,7 @@
 #endif
 
 #include "problem.hpp"
+#include "reconfiguration/manager.hpp"
 #include "global/space.hpp"
 #include "io.hpp"
 #include "clock.hpp"
@@ -54,6 +55,8 @@ static unsigned int max_depth = 0;
 static bool want_rta_file;
 
 static bool continue_after_dl_miss = false;
+
+static bool automatically_reconfigure = false;
 
 #ifdef CONFIG_PARALLEL
 static unsigned int num_worker_threads = 0;
@@ -91,6 +94,11 @@ static Analysis_result analyze(
 		edges,
 		NP::parse_abort_file<Time>(aborts_in),
 		num_processors};
+
+	if (automatically_reconfigure) {
+		int result = NP::Reconfiguration_manager<Time>::run_with_automatic_reconfiguration(problem);
+		exit(result);
+	}
 
 	// Set common analysis options
 	NP::Analysis_options opts;
@@ -304,6 +312,11 @@ int main(int argc, char** argv)
 	parser.description("Exact NP Schedulability Tester");
 	parser.usage("usage: %prog [OPTIONS]... [JOB SET FILES]...");
 
+	parser.add_option("--reconfigure").dest("reconfigure")
+		  .help("try to automatically reconfigure the system when the job set is deemed unschedulable")
+		  .action("store_const").set_const("1")
+		  .set_default("0");
+
 	parser.add_option("-t", "--time").dest("time_model")
 	      .metavar("TIME-MODEL")
 	      .choices({"dense", "discrete"}).set_default("discrete")
@@ -406,6 +419,8 @@ int main(int argc, char** argv)
 	want_rta_file = options.get("rta");
 
 	continue_after_dl_miss = options.get("go_on_after_dl");
+
+	automatically_reconfigure = options.get("reconfigure");
 
 	use_supernodes = options.get("sn");
 
