@@ -403,16 +403,16 @@ namespace NP {
 			}
 
 			void update_finish_times(
-				Response_times& r, const Job<Time>& j, Interval<Time> range)
+				Response_times& r, const Node &n, const Job<Time>& j, Interval<Time> range)
 			{
 				update_finish_times(r, j.get_job_index(), range);
 				if (j.exceeds_deadline(range.upto())) {
 					aborted = true;
-					std::cout << "missed deadline\n";
+					if (reconfiguration_agent) reconfiguration_agent->missed_deadline(n, j);
 				}
 			}
 
-			void update_finish_times(const Job<Time>& j, Interval<Time> range)
+			void update_finish_times(const Node &n, const Job<Time>& j, Interval<Time> range)
 			{
 				Response_times& r =
 #ifdef CONFIG_PARALLEL
@@ -420,7 +420,7 @@ namespace NP {
 #else
 					rta;
 #endif
-				update_finish_times(r, j, range);
+				update_finish_times(r, n, j, range);
 			}
 
 
@@ -468,7 +468,7 @@ namespace NP {
 
 							// update response times
 							std::cout << "already aborted?\n";
-							update_finish_times(j, frange);
+							update_finish_times(new_n, j, frange);
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 							edges.emplace_back(&j, &new_n, &next, frange, pmin);
 #endif
@@ -1150,8 +1150,7 @@ namespace NP {
 						Interval<Time> ftimes = st + j.get_cost(p);
 
 						// update finish-time estimates
-						// TODO Check for potential deadline miss
-						update_finish_times(j, ftimes);
+						update_finish_times(n, j, ftimes);
 
 						if (use_supernodes == false)
 						{

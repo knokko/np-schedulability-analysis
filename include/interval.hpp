@@ -44,6 +44,10 @@ template<class T> class Interval {
 	{
 	}
 
+	void make_pessimistic() {
+		a = b;
+	}
+
 	const T& from() const
 	{
 		return a;

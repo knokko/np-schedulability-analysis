@@ -95,6 +95,16 @@ namespace NP {
 			compute_hash();
 		}
 
+		void assume_pessimistic_arrival() {
+			arrival.make_pessimistic();
+		}
+
+		void assume_pessimistic_running_time() {
+			for (auto &entry : exec_time) {
+				entry.second.make_pessimistic();
+			}
+		}
+
 		hash_value_t get_key() const
 		{
 			return key;
