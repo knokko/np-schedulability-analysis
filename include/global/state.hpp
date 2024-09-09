@@ -643,7 +643,7 @@ namespace NP {
 			State_ref_queue states;
 
 		public:
-			Reconfiguration_attachment *attachment;
+			Reconfiguration::Reconfiguration_attachment *attachment;
 
 			// initial node
 			Schedule_node(
@@ -651,7 +651,7 @@ namespace NP {
 				const Time next_earliest_release = 0,
 				const Time next_certain_source_job_release = Time_model::constants<Time>::infinity(), // the next time a job without predecessor is certainly released
 				const Time next_certain_sequential_source_job_release = Time_model::constants<Time>::infinity(), // the next time a job without predecessor that can execute on a single core is certainly released
-				Reconfiguration_attachment *attachment = nullptr
+				Reconfiguration::Reconfiguration_attachment *attachment = nullptr
 			)
 				: lookup_key{ 0 }
 				, num_cpus(num_cores)
@@ -675,7 +675,7 @@ namespace NP {
 				const Time next_earliest_release,
 				const Time next_certain_source_job_release, // the next time a job without predecessor is certainly released
 				const Time next_certain_sequential_source_job_release, // the next time a job without predecessor that can execute on a single core is certainly released
-				Reconfiguration_attachment *attachment
+				Reconfiguration::Reconfiguration_attachment *attachment
 			)
 				: scheduled_jobs{ from.scheduled_jobs, idx }
 				, lookup_key{ from.next_key(j) }

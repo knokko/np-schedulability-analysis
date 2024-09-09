@@ -49,7 +49,7 @@ namespace NP {
 			static State_space* explore(
 				const Problem& prob,
 				const Analysis_options& opts,
-				Reconfiguration_agent<Time> *reconfiguration_agent = nullptr)
+				Reconfiguration::Reconfiguration_agent<Time> *reconfiguration_agent = nullptr)
 			{
 				// doesn't yet support exploration after deadline miss
 				assert(opts.early_exit);
@@ -309,7 +309,7 @@ namespace NP {
 			const double timeout;
 			const unsigned int num_cpus;
 			bool use_supernodes = true;
-			Reconfiguration_agent<Time> *reconfiguration_agent;
+			Reconfiguration::Reconfiguration_agent<Time> *reconfiguration_agent;
 
 			State_space(const Workload& jobs,
 				const Precedence_constraints& edges,
@@ -317,7 +317,7 @@ namespace NP {
 				double max_cpu_time = 0,
 				unsigned int max_depth = 0,
 				bool use_supernodes = true,
-				Reconfiguration_agent<Time> *reconfiguration_agent = nullptr)
+				Reconfiguration::Reconfiguration_agent<Time> *reconfiguration_agent = nullptr)
 				: jobs(jobs)
 				, aborted(false)
 				, timed_out(false)
@@ -497,7 +497,7 @@ namespace NP {
 
 				Time next_certain_release = std::min(next_certain_seq_release, next_certain_gang_release);
 
-				Reconfiguration_attachment *attachment = nullptr;
+				Reconfiguration::Reconfiguration_attachment *attachment = nullptr;
 				if (reconfiguration_agent) attachment = reconfiguration_agent->create_initial_node_attachment();
 				Node& n = new_node(num_cores, jobs_by_earliest_arrival.begin()->first, next_certain_release, next_certain_seq_release, attachment);
 				State& s = new_state(num_cores, next_certain_gang_release);
@@ -1087,7 +1087,7 @@ namespace NP {
 					}
 				}
 
-				Reconfiguration_attachment *attachment = nullptr;
+				Reconfiguration::Reconfiguration_attachment *attachment = nullptr;
 				if (reconfiguration_agent) attachment = reconfiguration_agent->create_next_node_attachment(n, j);
 
 				Node& next_node = new_node(n, j, j.get_job_index(),

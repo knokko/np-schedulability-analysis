@@ -96,7 +96,7 @@ static Analysis_result analyze(
 		num_processors};
 
 	if (automatically_reconfigure) {
-		int result = NP::Reconfiguration_manager<Time>::run_with_automatic_reconfiguration(problem);
+		int result = NP::Reconfiguration::Reconfiguration_manager<Time>::run_with_automatic_reconfiguration(problem);
 		exit(result);
 	}
 

@@ -4,7 +4,7 @@
 #include "attachment.hpp"
 #include "jobs.hpp"
 
-namespace NP {
+namespace NP::Reconfiguration {
 	template <class Time> class Reconfiguration_agent {
 	public:
 		virtual ~Reconfiguration_agent() = default;

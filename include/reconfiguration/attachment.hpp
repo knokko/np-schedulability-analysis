@@ -2,7 +2,7 @@
 #define RECONFIGURATION_ATTACHMENT_H
 #include <vector>
 
-namespace NP {
+namespace NP::Reconfiguration {
 	struct Reconfiguration_attachment {
 		virtual ~Reconfiguration_attachment() = default;
 	};

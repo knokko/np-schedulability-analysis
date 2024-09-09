@@ -5,7 +5,7 @@
 
 #include "global/space.hpp"
 
-namespace NP {
+namespace NP::Reconfiguration {
 	template<class Time>
 	class Reconfiguration_manager {
 	public:
