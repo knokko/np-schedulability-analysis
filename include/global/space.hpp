@@ -467,7 +467,6 @@ namespace NP {
 							num_states++;
 
 							// update response times
-							std::cout << "already aborted?\n";
 							update_finish_times(new_n, j, frange);
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 							edges.emplace_back(&j, &new_n, &next, frange, pmin);
@@ -1340,10 +1339,7 @@ namespace NP {
 
 					check_depth_abort();
 					check_cpu_timeout();
-					if (aborted) {
-						std::cout << "aborted\n";
-						break;
-					}
+					if (aborted) break;
 
 #ifdef CONFIG_PARALLEL
 

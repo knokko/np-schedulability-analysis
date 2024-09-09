@@ -5,6 +5,7 @@
 
 #include "global/space.hpp"
 #include "pessimistic.hpp"
+#include "solution.hpp"
 
 namespace NP::Reconfiguration {
 	template<class Time>
@@ -34,9 +35,15 @@ namespace NP::Reconfiguration {
 			}
 
 			PessimisticReconfigurator<Time> pessimistic_reconfigurator(problem, history_agent.failures, &test_options);
-			pessimistic_reconfigurator.find_local_minimal_solution();
+			auto pessimistic_solution = pessimistic_reconfigurator.find_local_minimal_solution();
+			if (pessimistic_solution.size() > 1) {
+				std::cout << "The given problem is not schedulable, but you can make it schedulable by following these steps:\n";
+				for (auto solution : pessimistic_solution) solution->print();
+				return 0;
+			}
 
-			return 0;
+			std::cout << "The given problem is not schedulable, and I couldn't find a solution to fix it.\n";
+			return 1;
 		}
 	};
 }
