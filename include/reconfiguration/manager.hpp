@@ -4,6 +4,7 @@
 #include <unordered_set>
 
 #include "global/space.hpp"
+#include "pessimistic.hpp"
 
 namespace NP::Reconfiguration {
 	template<class Time>
@@ -32,38 +33,8 @@ namespace NP::Reconfiguration {
 				return -1;
 			}
 
-			std::pmr::unordered_set<unsigned long> problematic_jobs;
-			for (auto failure : history_agent.failures) {
-				std::cout << "Failure: ";
-				for (auto job : failure.chosen_job_ids) {
-					problematic_jobs.insert(job);
-					std::cout << job << ", ";
-				}
-				std::cout << failure.missed_job_id << "\n";
-			}
-
-			auto adapted_problem = problem;
-			for (auto &job : adapted_problem.jobs) {
-				if (problematic_jobs.find(job.get_job_id()) != problematic_jobs.end()) {
-					job.assume_pessimistic_arrival();
-					job.assume_pessimistic_running_time();
-					std::cout << "new arrival time of " << job.get_job_id() << " is " << job.arrival_window() << "\n";
-				} else std::cout << "skipped job " << job.get_job_id() << "\n";
-			}
-
-			auto adapted_agent = Agent_job_sequence_history<Time>();
-			auto adapted_analysis = Global::State_space<Time>::explore(
-				adapted_problem, test_options, &adapted_agent
-			);
-
-			std::cout << "adapted is schedulable? " << adapted_analysis->is_schedulable() << "\n";
-			for (auto failure : adapted_agent.failures) {
-				std::cout << "Failure: ";
-				for (auto job : failure.chosen_job_ids) {
-					std::cout << job << ", ";
-				}
-				std::cout << failure.missed_job_id << "\n";
-			}
+			PessimisticReconfigurator<Time> pessimistic_reconfigurator(problem, history_agent.failures, &test_options);
+			pessimistic_reconfigurator.find_local_minimal_solution();
 
 			return 0;
 		}
