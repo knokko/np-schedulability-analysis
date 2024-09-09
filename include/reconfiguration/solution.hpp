@@ -13,7 +13,7 @@ namespace NP::Reconfiguration {
 	};
 
 	template<class Time> struct PessimisticArrivalTimeSolution final : Solution {
-		unsigned long job_id{};
+		JobID job_id{0, 0};
 		Time earliest;
 		Time latest;
 
@@ -24,7 +24,7 @@ namespace NP::Reconfiguration {
 	};
 
 	template<class Time> struct PessimisticExecutionTimeSolution final : Solution {
-		unsigned long job_id{};
+		JobID job_id{0, 0};
 		Time bestCase;
 		Time worstCase;
 

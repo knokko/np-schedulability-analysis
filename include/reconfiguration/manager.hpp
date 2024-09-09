@@ -25,7 +25,7 @@ namespace NP::Reconfiguration {
 			);
 
 			if (base_analysis->is_schedulable()) {
-				std::cout << "No reconfiguration needed\n";
+				std::cout << "The given problem is already schedulable.\n";
 				return 0;
 			}
 

@@ -25,8 +25,8 @@ namespace NP::Reconfiguration {
 	};
 
 	struct FailedSequence {
-		std::vector<unsigned long> chosen_job_ids;
-		unsigned long missed_job_id;
+		std::vector<JobID> chosen_job_ids;
+		JobID missed_job_id;
 	};
 
 	template <class Time> class Agent_job_sequence_history final : public Agent<Time> {
@@ -36,7 +36,7 @@ namespace NP::Reconfiguration {
 
 		Attachment* create_initial_node_attachment() override {
 			const auto attachment = new Attachment_job_sequence();
-			attachment->chosen_job_ids = std::vector<unsigned long>();
+			attachment->chosen_job_ids = std::vector<JobID>();
 			return attachment;
 		}
 
@@ -48,7 +48,7 @@ namespace NP::Reconfiguration {
 
 			const auto new_attachment = new Attachment_job_sequence();
 			new_attachment->chosen_job_ids = parent_attachment->chosen_job_ids;
-			new_attachment->chosen_job_ids.push_back(next_job.get_job_id());
+			new_attachment->chosen_job_ids.push_back(next_job.get_id());
 			return new_attachment;
 		}
 
@@ -58,7 +58,7 @@ namespace NP::Reconfiguration {
 
 			failures.push_back(FailedSequence {
 				.chosen_job_ids=attachment->chosen_job_ids,
-				.missed_job_id=late_job.get_job_id()
+				.missed_job_id=late_job.get_id()
 			});
 		}
 	};
