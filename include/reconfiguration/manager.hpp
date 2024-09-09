@@ -7,7 +7,7 @@
 
 namespace NP::Reconfiguration {
 	template<class Time>
-	class Reconfiguration_manager {
+	class Manager {
 	public:
 		static int run_with_automatic_reconfiguration(Scheduling_problem<Time> problem) {
 			Analysis_options test_options;
@@ -17,7 +17,7 @@ namespace NP::Reconfiguration {
 			test_options.be_naive = false;
 			test_options.use_supernodes = false;
 
-			auto history_agent = Reconfiguration_agent_job_sequence_history<Time>();
+			auto history_agent = Agent_job_sequence_history<Time>();
 			auto base_analysis = Global::State_space<Time>::explore(
 				problem, test_options, &history_agent
 			);
@@ -51,7 +51,7 @@ namespace NP::Reconfiguration {
 				} else std::cout << "skipped job " << job.get_job_id() << "\n";
 			}
 
-			auto adapted_agent = Reconfiguration_agent_job_sequence_history<Time>();
+			auto adapted_agent = Agent_job_sequence_history<Time>();
 			auto adapted_analysis = Global::State_space<Time>::explore(
 				adapted_problem, test_options, &adapted_agent
 			);

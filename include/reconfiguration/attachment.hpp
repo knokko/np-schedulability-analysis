@@ -3,11 +3,11 @@
 #include <vector>
 
 namespace NP::Reconfiguration {
-	struct Reconfiguration_attachment {
-		virtual ~Reconfiguration_attachment() = default;
+	struct Attachment {
+		virtual ~Attachment() = default;
 	};
 
-	struct Reconfiguration_attachment_job_sequence final: Reconfiguration_attachment {
+	struct Attachment_job_sequence final: Attachment {
 		std::vector<unsigned long> chosen_job_ids;
 	};
 }
