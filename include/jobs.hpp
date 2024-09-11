@@ -30,6 +30,10 @@ namespace NP {
 			return this->task == other.task && this->job == other.job;
 		}
 
+		bool operator!=(const JobID &other) const {
+			return this->task != other.task || this->job != other.job;
+		}
+
 		friend std::ostream& operator<< (std::ostream& stream, const JobID& id)
 		{
 			stream << "T" << id.task << "J" << id.job;
