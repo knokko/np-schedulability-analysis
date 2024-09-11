@@ -33,6 +33,17 @@ namespace NP::Reconfiguration {
 				" to the worst-case running time " << worstCase << "\n";
 		}
 	};
+
+	struct Precedence_solution final : Solution {
+		JobID from;
+		JobID to;
+
+		Precedence_solution(const JobID from, const JobID to) : from(from), to(to) {}
+
+		void print() override {
+			std::cout << "Add a precedence constraint to ensure that " << from << " must finish before " << to << " can start\n";
+		}
+	};
 }
 
 #endif

@@ -24,7 +24,7 @@ namespace NP::Reconfiguration {
 		}
 
 		bool attempt_adapted_problem() {
-			Agent_job_sequence_history<Time> agent;
+			Agent_simple_failure_search<Time> agent;
 			auto result = Global::State_space<Time>::explore(
 				adapted_problem, *test_options, &agent
 			);

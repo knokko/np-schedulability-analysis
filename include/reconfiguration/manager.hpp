@@ -1,11 +1,9 @@
 #ifndef RECONFIGURATION_MANAGER_H
 #define RECONFIGURATION_MANAGER_H
 
-#include <unordered_set>
-
 #include "global/space.hpp"
 #include "pessimistic.hpp"
-#include "solution.hpp"
+#include "precedence.hpp"
 
 namespace NP::Reconfiguration {
 	template<class Time>
@@ -19,7 +17,7 @@ namespace NP::Reconfiguration {
 			test_options.be_naive = false;
 			test_options.use_supernodes = false;
 
-			auto history_agent = Agent_job_sequence_history<Time>();
+			auto history_agent = Agent_simple_failure_search<Time>();
 			auto base_analysis = Global::State_space<Time>::explore(
 				problem, test_options, &history_agent
 			);
@@ -34,11 +32,21 @@ namespace NP::Reconfiguration {
 				return -1;
 			}
 
-			PessimisticReconfigurator<Time> pessimistic_reconfigurator(problem, history_agent.failures, &test_options);
-			auto pessimistic_solution = pessimistic_reconfigurator.find_local_minimal_solution();
-			if (pessimistic_solution.size() > 1) {
+			if constexpr (false) {
+				PessimisticReconfigurator<Time> pessimistic_reconfigurator(problem, history_agent.failures, &test_options);
+				auto pessimistic_solution = pessimistic_reconfigurator.find_local_minimal_solution();
+				if (pessimistic_solution.size() > 0) {
+					std::cout << "The given problem is not schedulable, but you can make it schedulable by following these steps:\n";
+					for (auto solution : pessimistic_solution) solution->print();
+					return 0;
+				}
+			}
+
+			PrecedenceReconfigurator<Time> precedence_reconfigurator(problem, history_agent.failures, &test_options);
+			auto precedence_solution = precedence_reconfigurator.find_local_minimal_solution();
+			if (precedence_solution.size() > 0) {
 				std::cout << "The given problem is not schedulable, but you can make it schedulable by following these steps:\n";
-				for (auto solution : pessimistic_solution) solution->print();
+				for (const auto solution : precedence_solution) solution->print();
 				return 0;
 			}
 

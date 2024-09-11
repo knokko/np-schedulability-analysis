@@ -1294,13 +1294,19 @@ namespace NP {
 					// then j will never be the next job dispached by the scheduler
 					if (t_high_wos <= j.earliest_arrival())
 						continue;
+
+					// The reconfiguration agent can forbid transitions
+					if (reconfiguration_agent && !reconfiguration_agent->is_allowed(n, j)) continue;
+
 					found_one |= dispatch(n, j, upbnd_t_wc, t_high_wos);
 				}
 
 				// check for a dead end
-				if (!found_one && !all_jobs_scheduled(n))
+				if (!found_one && !all_jobs_scheduled(n)) {
 					// out of options and we didn't schedule all jobs
 					aborted = true;
+					if (reconfiguration_agent) reconfiguration_agent->encountered_dead_end(n);
+				}
 			}
 
 			// naive: no state merging
