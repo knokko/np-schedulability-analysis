@@ -24,13 +24,10 @@ namespace NP::Reconfiguration {
 		}
 
 		bool attempt_adapted_problem() {
-			Agent_simple_failure_search<Time> agent;
-			auto result = Global::State_space<Time>::explore(
-				adapted_problem, *test_options, &agent
-			);
-			if (result->is_schedulable()) return true;
+			auto failures = Agent_failure_search<Time>::find_all_failures(adapted_problem, *test_options);
+			if (failures.size() == 0) return true;
 
-			update_critical_jobs(agent.failures);
+			update_critical_jobs(failures);
 			return false;
 		}
 

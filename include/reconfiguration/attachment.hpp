@@ -8,8 +8,12 @@ namespace NP::Reconfiguration {
 		virtual ~Attachment() = default;
 	};
 
-	struct Attachment_job_sequence final: Attachment {
+	struct Attachment_job_sequence : Attachment {
 		std::vector<JobID> chosen_job_ids;
+	};
+
+	struct Attachment_failure_search final: Attachment_job_sequence {
+		bool has_missed_deadline = false;
 	};
 }
 

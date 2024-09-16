@@ -1,10 +1,18 @@
 #ifndef RECONFIGURATION_AGENT_H
 #define RECONFIGURATION_AGENT_H
-#include <optional>
 
 #include "global/state.hpp"
 #include "attachment.hpp"
 #include "jobs.hpp"
+
+namespace NP {
+	struct Analysis_options;
+	template<class Time> class Scheduling_problem;
+
+	namespace Global {
+		template<class Time> class State_space;
+	}
+}
 
 namespace NP::Reconfiguration {
 	template <class Time> class Agent {
@@ -25,19 +33,26 @@ namespace NP::Reconfiguration {
 			std::cout << "Encountered dead end\n";
 		}
 
+		virtual void finished_node(const Global::Schedule_node<Time> &dead_node) {
+			std::cout << "Finished node\n";
+		}
+
 		virtual bool is_allowed(const Global::Schedule_node<Time> &node, const Job<Time> &next_job) {
+			return true;
+		}
+
+		virtual bool allow_merge(const Global::Schedule_node<Time> &node, const Global::Schedule_node<Time> &other) {
+			std::cout << "Allowing job merge\n";
 			return true;
 		}
 	};
 
 	struct FailedSequence {
 		std::vector<JobID> chosen_job_ids;
-		std::optional<JobID> missed_job_id;
 
 		void print() const {
 			for (const auto job_id : chosen_job_ids) std::cout << job_id << ", ";
-			if (missed_job_id.has_value()) std::cout << "(missed " << *missed_job_id << ")\n";
-			else std::cout << "dead\n";
+			std::cout << "\n";
 		}
 
 		[[nodiscard]] bool is_prefix_of(const FailedSequence &other) const {
@@ -47,7 +62,6 @@ namespace NP::Reconfiguration {
 				if (other.chosen_job_ids[index] != chosen_job_ids[index]) return false;
 			}
 
-			//return missed_job_id == other.chosen_job_ids[chosen_job_ids.size()];
 			return true;
 		}
 	};
@@ -73,54 +87,94 @@ namespace NP::Reconfiguration {
 		}
 	};
 
-	template <class Time> class Agent_simple_failure_search : public Agent_job_sequence_history<Time> {
-		void add_failure(FailedSequence failure) {
+	template <class Time> class Agent_failure_search : public Agent<Time> {
+		int paths_without_deadline_misses = 0;
+		std::vector<FailedSequence> failures;
+		bool did_update_failures = true;
+
+		void add_failure(const FailedSequence &failure) {
 			for (int index = 0; index < failures.size(); index++) {
 				if (failure.is_prefix_of(failures[index])) {
 					failures[index] = failures[failures.size() - 1];
 					failures.pop_back();
-				}
+					did_update_failures = true;
+				} else if (failures[index].is_prefix_of(failure) || failure.chosen_job_ids == failures[index].chosen_job_ids) return;
 			}
 			failures.push_back(failure);
+			did_update_failures = true;
 		}
 	public:
-		bool instant_failure = false;
-		std::vector<FailedSequence> failures;
+		static std::vector<FailedSequence> find_all_failures(Scheduling_problem<Time> &problem, Analysis_options &test_options) {
+			Agent_failure_search agent;
+			while (agent.did_update_failures) {
+				Global::State_space<Time>::explore(
+					problem, test_options, &agent
+				);
+			}
+			return agent.failures;
+		}
+
+		Attachment* create_initial_node_attachment() override {
+			paths_without_deadline_misses = 0;
+			did_update_failures = false;
+			const auto attachment = new Attachment_failure_search();
+			attachment->chosen_job_ids = std::vector<JobID>();
+			attachment->has_missed_deadline = false;
+			return attachment;
+		}
+
+		Attachment* create_next_node_attachment(
+			const Global::Schedule_node<Time> &parent_node, Job<Time> next_job
+		) override {
+			const auto parent_attachment = dynamic_cast<Attachment_failure_search * const>(parent_node.attachment);
+			assert(parent_attachment);
+
+			const auto new_attachment = new Attachment_failure_search();
+			new_attachment->chosen_job_ids = parent_attachment->chosen_job_ids;
+			new_attachment->chosen_job_ids.push_back(next_job.get_id());
+			new_attachment->has_missed_deadline = parent_attachment->has_missed_deadline;
+			return new_attachment;
+		}
 
 		void missed_deadline(const Global::Schedule_node<Time> &failed_node, const Job<Time> &late_job) override {
-			const auto attachment = dynamic_cast<Attachment_job_sequence * const>(failed_node.attachment);
+			const auto attachment = dynamic_cast<Attachment_failure_search * const>(failed_node.attachment);
 			assert(attachment);
 
 			auto chosen_job_ids = attachment->chosen_job_ids;
 			chosen_job_ids.push_back(late_job.get_id());
 
-			add_failure(FailedSequence {
-				.chosen_job_ids=chosen_job_ids,
-				.missed_job_id=late_job.get_id()
-			});
-
-			std::cout << "Missed deadline from " << attachment->chosen_job_ids[attachment->chosen_job_ids.size() - 1] << " to " << late_job.get_id() << "\n";
+			if (!attachment->has_missed_deadline) {
+				attachment->has_missed_deadline = true;
+				add_failure(FailedSequence {.chosen_job_ids=chosen_job_ids});
+			}
 		}
 
 		void encountered_dead_end(const Global::Schedule_node<Time> &dead_node) override {
-			const auto attachment = dynamic_cast<Attachment_job_sequence * const>(dead_node.attachment);
+			const auto attachment = dynamic_cast<Attachment_failure_search* const>(dead_node.attachment);
 			assert(attachment);
 
-			std::cout << "Encountered dead end after " << attachment->chosen_job_ids.size() << ": ";
-			for (const auto job : attachment->chosen_job_ids) std::cout << job << ", ";
-			std::cout << "\n";
+			if (!attachment->has_missed_deadline) {
+				attachment->has_missed_deadline = true;
 
-			if (attachment->chosen_job_ids.empty()) instant_failure = true;
-			else {
-                add_failure(FailedSequence {
-                    .chosen_job_ids=attachment->chosen_job_ids,
-                    .missed_job_id=std::nullopt
-                });
+				add_failure(FailedSequence {.chosen_job_ids=attachment->chosen_job_ids});
 			}
 		}
-	};
 
-	template <class Time> class Agent_exhaustive_failure_search : public Agent_simple_failure_search<Time> {
+		void finished_node(const Global::Schedule_node<Time> &dead_node) override {
+			paths_without_deadline_misses += 1;
+		}
+
+		bool allow_merge(const Global::Schedule_node<Time> &node, const Global::Schedule_node<Time> &other) override {
+			const auto attachment1 = dynamic_cast<Attachment_failure_search*>(node.attachment);
+			assert(attachment1);
+
+			const auto attachment2 = dynamic_cast<Attachment_failure_search*>(other.attachment);
+			assert(attachment2);
+
+			// Don't allow the graph to merge nodes that missed a deadline with nodes that didn't
+			return attachment1->has_missed_deadline == attachment2->has_missed_deadline;
+		}
+
 		bool is_allowed(const Global::Schedule_node<Time> &node, const Job<Time> &next_job) override {
 			const auto attachment = dynamic_cast<Attachment_job_sequence*>(node.attachment);
 			assert(attachment);
@@ -129,25 +183,7 @@ namespace NP::Reconfiguration {
 			new_job_ids.push_back(next_job.get_id());
 
 			for (const auto failure : this->failures) {
-				// // TODO Hm... fix this
-				// auto fsize = failure.chosen_job_ids.size();
-				// auto asize = attachment->chosen_job_ids.size();
-				// if ((fsize == asize && failure.missed_job_id.has_value()) || (fsize == asize + 1 && !failure.missed_job_id.has_value())) {
-				// 	bool matched = true;
-				// 	for (int index = 0; index < asize; index++) {
-				// 		if (failure.chosen_job_ids[index] != attachment->chosen_job_ids[index]) {
-				// 			matched = false;
-				// 			break;
-				// 		}
-				// 	}
-				//
-				// 	if (!matched) continue;
-				//
-				// 	if (failure.missed_job_id.has_value()) matched = *failure.missed_job_id == ehm;
-				// }
-				if (failure.chosen_job_ids == new_job_ids/* && failure.missed_job_id == next_job.get_id()*/) {
-					std::cout << "Prevented transition to " << next_job.get_id() << "\n";
-					// TODO check first case
+				if (failure.chosen_job_ids == new_job_ids) {
 					return false;
 				}
 			}

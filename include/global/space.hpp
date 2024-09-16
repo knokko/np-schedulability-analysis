@@ -1104,6 +1104,8 @@ namespace NP {
 						if (other->get_scheduled_jobs() != sched_jobs)
 							continue;
 
+						if (reconfiguration_agent && !reconfiguration_agent->allow_merge(n, *other)) continue;
+
 						// If we have reached here, it means that we have found an existing node with the same 
 						// set of scheduled jobs than the new state resuting from scheduling job j in system state s.
 						// Thus, our new state can be added to that existing node.
@@ -1199,7 +1201,7 @@ namespace NP {
 						}
 
 						// yep, job j is a feasible successor in state s
-						dispatched_one = true;						
+						dispatched_one = true;
 
 						// update finish-time estimates
 						update_finish_times(n, j, ftimes);
@@ -1338,7 +1340,7 @@ namespace NP {
 					DM(j << " (" << index_of(j) << ")" << std::endl);
 					// stop looking once we've left the window of interest
 					if (j.earliest_arrival() > upbnd_t_wc)
-						break;
+						break; // TODO Revert to break after testing
 
 					// Job could be not ready due to precedence constraints
 					if (!ready(n, j))
@@ -1364,8 +1366,10 @@ namespace NP {
 				if (!found_one && !all_jobs_scheduled(n)) {
 					// out of options and we didn't schedule all jobs
 					observed_deadline_miss = true;
-					aborted = true;
+					if (early_exit) aborted = true;
 					if (reconfiguration_agent) reconfiguration_agent->encountered_dead_end(n);
+				} else if (reconfiguration_agent && found_one && current_job_count == jobs.size() - 1) {
+					reconfiguration_agent->finished_node(n);
 				}
 			}
 

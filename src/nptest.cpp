@@ -52,7 +52,7 @@ static bool want_rta_file;
 
 static bool continue_after_dl_miss = false;
 
-static bool automatically_reconfigure = false;
+static NP::Reconfiguration::Options reconfigure_options;
 
 #ifdef CONFIG_PARALLEL
 static unsigned int num_worker_threads = 0;
@@ -91,8 +91,8 @@ static Analysis_result analyze(
 		NP::parse_abort_file<Time>(aborts_in),
 		num_processors};
 
-	if (automatically_reconfigure) {
-		int result = NP::Reconfiguration::Manager<Time>::run_with_automatic_reconfiguration(problem);
+	if (reconfigure_options.enabled) {
+		int result = NP::Reconfiguration::Manager<Time>::run_with_automatic_reconfiguration(reconfigure_options, problem);
 		exit(result);
 	}
 
@@ -312,6 +312,14 @@ int main(int argc, char** argv)
 		  .help("try to automatically reconfigure the system when the job set is deemed unschedulable")
 		  .action("store_const").set_const("1")
 		  .set_default("0");
+	parser.add_option("--reconfigure-skip-pessimism").dest("reconfigure-skip-pessimism")
+		  .help("skip the pessimistic reconfiguration attempt, when --reconfigure is enabled")
+		  .action("store_const").set_const("1")
+		  .set_default("0");
+	parser.add_option("--reconfigure-skip-precedence").dest("reconfigure-skip-precedence")
+		  .help("skip the precedence reconfiguration attempt, when --reconfigure is enabled")
+		  .action("store_const").set_const("1")
+		  .set_default("0");
 
 	parser.add_option("-t", "--time").dest("time_model")
 	      .metavar("TIME-MODEL")
@@ -416,7 +424,9 @@ int main(int argc, char** argv)
 
 	continue_after_dl_miss = options.get("go_on_after_dl");
 
-	automatically_reconfigure = options.get("reconfigure");
+	reconfigure_options.enabled = options.get("reconfigure");
+	reconfigure_options.skip_pessimism = options.get("reconfigure-skip-pessimism");
+	reconfigure_options.skip_precedence = options.get("reconfigure-skip-precedence");
 
 	use_supernodes = options.get("sn");
 

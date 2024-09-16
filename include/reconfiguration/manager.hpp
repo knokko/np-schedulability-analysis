@@ -6,34 +6,32 @@
 #include "precedence.hpp"
 
 namespace NP::Reconfiguration {
+	struct Options {
+        bool enabled{};
+        bool skip_pessimism{};
+        bool skip_precedence{};
+    };
+
 	template<class Time>
 	class Manager {
 	public:
-		static int run_with_automatic_reconfiguration(Scheduling_problem<Time> problem) {
+		static int run_with_automatic_reconfiguration(const Options options, Scheduling_problem<Time> problem) {
 			Analysis_options test_options;
 			test_options.timeout = 0;
 			test_options.max_depth = 0;
-			test_options.early_exit = true; // TODO Change to false when early_exit is supported
+			test_options.early_exit = false;
 			test_options.be_naive = false;
 			test_options.use_supernodes = false;
 
-			auto history_agent = Agent_simple_failure_search<Time>();
-			auto base_analysis = Global::State_space<Time>::explore(
-				problem, test_options, &history_agent
-			);
+			auto original_failures = Agent_failure_search<Time>::find_all_failures(problem, test_options);
 
-			if (base_analysis->is_schedulable()) {
+			if (original_failures.size() == 0) {
 				std::cout << "The given problem is already schedulable.\n";
 				return 0;
 			}
 
-			if (history_agent.failures.size() == 0) {
-				std::cout << "Not schedulable, but no missed deadlines?\n";
-				return -1;
-			}
-
-			if constexpr (false) {
-				PessimisticReconfigurator<Time> pessimistic_reconfigurator(problem, history_agent.failures, &test_options);
+			if (!options.skip_pessimism) {
+				PessimisticReconfigurator<Time> pessimistic_reconfigurator(problem, original_failures, &test_options);
 				auto pessimistic_solution = pessimistic_reconfigurator.find_local_minimal_solution();
 				if (pessimistic_solution.size() > 0) {
 					std::cout << "The given problem is not schedulable, but you can make it schedulable by following these steps:\n";
@@ -42,12 +40,14 @@ namespace NP::Reconfiguration {
 				}
 			}
 
-			PrecedenceReconfigurator<Time> precedence_reconfigurator(problem, history_agent.failures, &test_options);
-			auto precedence_solution = precedence_reconfigurator.find_local_minimal_solution();
-			if (precedence_solution.size() > 0) {
-				std::cout << "The given problem is not schedulable, but you can make it schedulable by following these steps:\n";
-				for (const auto solution : precedence_solution) solution->print();
-				return 0;
+			if (!options.skip_precedence) {
+                PrecedenceReconfigurator<Time> precedence_reconfigurator(problem, original_failures, &test_options);
+                auto precedence_solution = precedence_reconfigurator.find_local_minimal_solution();
+                if (precedence_solution.size() > 0) {
+                    std::cout << "The given problem is not schedulable, but you can make it schedulable by following these steps:\n";
+                    for (const auto solution : precedence_solution) solution->print();
+                    return 0;
+                }
 			}
 
 			std::cout << "The given problem is not schedulable, and I couldn't find a solution to fix it.\n";
