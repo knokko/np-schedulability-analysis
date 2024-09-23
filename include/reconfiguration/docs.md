@@ -2,7 +2,7 @@
 ## The flow
 I added a `--reconfigure` argument to the CLI. When present, the tool will call
 `NP::Reconfiguration::Manager::run_with_automatic_reconfiguration(const Options options, Scheduling_problem<Time> problem)`.
-The `run_with_automatic_reconfiguration` will check whether the given problem is schedulable. If it's already schedulable,
+The `run_with_automatic_reconfiguration` function will check whether the given problem is schedulable. If it's already schedulable,
 it will just print `The given problem is already schedulable` and quit.
 
 If it's not schedulable, it will try a number of *reconfiguration strategies* to find potential adaptations that would make
@@ -171,7 +171,7 @@ Once the program knows which edges should be avoided, the actual strategies will
 to avoid all these edges.
 
 ### The pessimism strategy
-Since the scheduler is assumed to be non-deterministic, it is possible that failures occur only when
+Since the scheduler is assumed to be non-preemptive, it is possible that failures occur only when
 jobs do **not** run for their WCET. In such cases, the task set can become schedulable by making all
 jobs (or a subset of jobs) always run for their WCET (the engineer can e.g. use busy waiting to
 accomplish this). The pessimism strategy will try to make the problem schedulable by making some
