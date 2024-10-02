@@ -2,6 +2,7 @@
 #define RECONFIGURATION_PRECEDENCE_H
 
 #include "agent.hpp"
+#include "reconfiguration/solution.hpp"
 
 namespace NP::Reconfiguration {
 	template<class Time> class PrecedenceReconfigurator {
