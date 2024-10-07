@@ -2,6 +2,8 @@
 #define INDEX_SET_H
 
 #include <cstdint>
+#include <vector>
+#include <iostream>
 
 namespace NP {
 
@@ -77,6 +79,15 @@ namespace NP {
 					if (contains(i))
 						count++;
 				return count;
+			}
+
+			std::size_t get_vector_size() const {
+				return the_set.size();
+			}
+
+			void clear() {
+				the_set.clear();
+				the_set.shrink_to_fit();
 			}
 
 			void add(std::size_t idx)

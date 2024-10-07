@@ -1117,7 +1117,7 @@ namespace NP {
 					}
 				}
 
-				Reconfiguration::Attachment *attachment = nullptr;
+				Reconfiguration::Attachment *attachment = nullptr; // TODO create_merged_attachment?
 				if (reconfiguration_agent) attachment = reconfiguration_agent->create_next_node_attachment(n, j);
 
 				Node& next_node = new_node(n, j, j.get_job_index(),

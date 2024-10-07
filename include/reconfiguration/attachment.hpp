@@ -2,6 +2,7 @@
 #define RECONFIGURATION_ATTACHMENT_H
 #include <jobs.hpp>
 #include <vector>
+#include "index_collection.hpp"
 
 namespace NP::Reconfiguration {
 	struct Attachment {
