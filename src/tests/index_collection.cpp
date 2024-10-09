@@ -20,6 +20,8 @@ TEST_CASE("Index_collection insert to vector") {
     CHECK(indices.contains(large_number));
     CHECK(!indices.contains(large_number - 1));
     CHECK(!indices.contains(large_number + 1));
+
+	// TODO Test iterator
 }
 
 TEST_CASE("Index_collection insert to set") {
@@ -60,14 +62,14 @@ TEST_CASE("Index_collection merge") {
     index_vector.insert(large_number);
 
     NP::Reconfiguration::Index_collection merged_into_set;
-    merged_into_set.merge(index_set);
-    merged_into_set.merge(index_vector);
+    merged_into_set.merge(&index_set);
+    merged_into_set.merge(&index_vector);
 
     NP::Reconfiguration::Index_collection merged_into_vector;
-    merged_into_vector.merge(index_vector);
-    merged_into_vector.merge(index_set);
+    merged_into_vector.merge(&index_vector);
+    merged_into_vector.merge(&index_set);
 
-    index_set.merge(index_vector);
+    index_set.merge(&index_vector);
 
     NP::Reconfiguration::Index_collection* allIndices[] = { &merged_into_set, &merged_into_vector, &index_set };
     for (const auto &indices : allIndices) {

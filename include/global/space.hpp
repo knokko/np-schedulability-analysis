@@ -469,7 +469,7 @@ namespace NP {
 							DM("deadline miss: " << new_n << " -> " << j << std::endl);
 							// This job is still incomplete but has no chance
 							// of being scheduled before its deadline anymore.
-							observed_deadline_miss = true;
+							observed_deadline_miss = true; // TODO Report to the reconfiguration agent
 							// if we stop at the first deadline miss, abort and create node in the graph for explanation purposes
 							if (early_exit) 
 							{
@@ -1107,17 +1107,18 @@ namespace NP {
 						if (reconfiguration_agent && !reconfiguration_agent->allow_merge(n, *other)) continue;
 
 						// If we have reached here, it means that we have found an existing node with the same 
-						// set of scheduled jobs than the new state resuting from scheduling job j in system state s.
+						// set of scheduled jobs as the new state resulting from scheduling job j in system state s.
 						// Thus, our new state can be added to that existing node.
 						if (other->merge_states(st, false))
 						{
 							delete& st;
+							if (reconfiguration_agent) reconfiguration_agent->merge_node_attachments(other, n, j);
 							return *other;
 						}
 					}
 				}
 
-				Reconfiguration::Attachment *attachment = nullptr; // TODO create_merged_attachment?
+				Reconfiguration::Attachment *attachment = nullptr;
 				if (reconfiguration_agent) attachment = reconfiguration_agent->create_next_node_attachment(n, j);
 
 				Node& next_node = new_node(n, j, j.get_job_index(),

@@ -3,94 +3,70 @@
 
 #include <unordered_set>
 #include "solution.hpp"
+#include "agent/failure_job_set.hpp"
 
 namespace NP::Reconfiguration {
-	template<class Time> class PessimisticReconfigurator {
-		std::pmr::unordered_set<JobID> critical_job_ids;
+	template<class Time> class Pessimistic_reconfigurator {
+		Index_collection* interesting_jobs;
 		Scheduling_problem<Time> *original_problem;
 		Scheduling_problem<Time> adapted_problem;
-		Analysis_options *test_options{};
-
-		void update_critical_jobs(std::vector<FailedSequence> &failures) {
-			for (const auto &failure : failures) {
-				for (auto job_id : failure.chosen_job_ids) critical_job_ids.insert(job_id);
-			}
-			for (auto &job : adapted_problem.jobs) {
-				if (critical_job_ids.find(job.get_id()) != critical_job_ids.end()) {
-					job.assume_pessimistic_arrival();
-					job.assume_pessimistic_running_time();
-				}
-			}
-		}
 
 		bool attempt_adapted_problem() {
-			auto failures = Agent_failure_search<Time>::find_all_failures(adapted_problem, *test_options);
-			if (failures.size() == 0) return true;
+			Analysis_options test_options;
+			test_options.early_exit = false;
+			test_options.use_supernodes = false;
 
-			update_critical_jobs(failures);
-			return false;
-		}
-
-		bool adapt_until_schedulable() {
-			while (true) {
-				const auto old_job_count = critical_job_ids.size();
-				if (attempt_adapted_problem()) return true;
-				if (old_job_count == critical_job_ids.size()) {
-					std::cout << "Pessimistic solution failed: problematic job IDs are ";
-					for (const auto job : critical_job_ids) std::cout << job << ", ";
-					std::cout << "\n";
-					return false;
-				}
-			}
+			return Global::State_space<Time>::explore(adapted_problem, test_options, nullptr)->is_schedulable();
 		}
 
 	public:
-		PessimisticReconfigurator(
-			Scheduling_problem<Time> &problem,
-			std::vector<FailedSequence> failures,
-			Analysis_options *test_options
-		) : original_problem(&problem), adapted_problem(problem), test_options(test_options) {
-			update_critical_jobs(failures);
-		}
+		Pessimistic_reconfigurator(
+				Scheduling_problem<Time> &problem, Index_collection *interesting_jobs
+		) : original_problem(&problem), adapted_problem(problem), interesting_jobs(interesting_jobs) { }
 
 		std::vector<Solution*> find_local_minimal_solution() {
-			// Return an empty vector when pessimism can't solve the problem
-			if (!adapt_until_schedulable()) return {};
+
+			// Assume pessimistic arrival times and running times for all jobs
+			for (const auto job_index : *interesting_jobs) {
+				adapted_problem.jobs[job_index].assume_pessimistic_arrival();
+				adapted_problem.jobs[job_index].assume_pessimistic_running_time();
+			}
+
+			// Return an empty vector when even that doesn't solve the problem
+			if (!attempt_adapted_problem()) return {};
 
 			std::vector<Solution*> solution;
-			for (int job_index = 0; job_index < adapted_problem.jobs.size(); job_index++) {
+			for (const auto job_index : *interesting_jobs) {
 				auto original_job = original_problem->jobs[job_index];
-				if (critical_job_ids.find(original_job.get_id()) != critical_job_ids.end()) {
-					auto adapted_job = original_job;
+				auto adapted_job = original_job;
 
-					auto test_job = original_job;
-					test_job.assume_pessimistic_arrival();
-					adapted_problem.jobs[job_index] = test_job;
-					if (!attempt_adapted_problem()) {
-						auto pets = new PessimisticExecutionTimeSolution<Time>();
-						pets->job_id = original_job.get_id();
-						pets->bestCase = original_job.get_cost().min();
-						pets->worstCase = original_job.get_cost().max();
+				auto test_job = original_job;
+				test_job.assume_pessimistic_arrival();
+				adapted_problem.jobs[job_index] = test_job;
+				if (!attempt_adapted_problem()) {
+					auto pets = new PessimisticExecutionTimeSolution<Time>();
+					pets->job_id = original_job.get_id();
+					pets->bestCase = original_job.get_cost().min();
+					pets->worstCase = original_job.get_cost().max();
 
-						solution.push_back(pets);
-						adapted_job.assume_pessimistic_running_time();
-					}
-
-					test_job = adapted_job;
-					test_job.assume_pessimistic_running_time();
-					adapted_problem.jobs[job_index] = test_job;
-					if (!attempt_adapted_problem()) {
-						auto pats = new PessimisticArrivalTimeSolution<Time>();
-						pats->job_id = original_job.get_id();
-						pats->earliest = original_job.earliest_arrival();
-						pats->latest = original_job.latest_arrival();
-
-						solution.push_back(pats);
-						adapted_job.assume_pessimistic_arrival();
-					}
-
-					adapted_problem.jobs[job_index] = adapted_job;
+					solution.push_back(pets);
+					adapted_job.assume_pessimistic_running_time();
 				}
+
+				test_job = adapted_job;
+				test_job.assume_pessimistic_running_time();
+				adapted_problem.jobs[job_index] = test_job;
+				if (!attempt_adapted_problem()) {
+					auto pats = new PessimisticArrivalTimeSolution<Time>();
+					pats->job_id = original_job.get_id();
+					pats->earliest = original_job.earliest_arrival();
+					pats->latest = original_job.latest_arrival();
+
+					solution.push_back(pats);
+					adapted_job.assume_pessimistic_arrival();
+				}
+
+				adapted_problem.jobs[job_index] = adapted_job;
 			}
 
 			return solution;

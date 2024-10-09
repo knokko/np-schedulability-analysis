@@ -87,7 +87,6 @@ namespace NP {
 
 			void clear() {
 				the_set.clear();
-				the_set.shrink_to_fit();
 			}
 
 			void add(std::size_t idx)

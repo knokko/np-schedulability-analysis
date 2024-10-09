@@ -1,8 +1,6 @@
 #ifndef RECONFIGURATION_ATTACHMENT_H
 #define RECONFIGURATION_ATTACHMENT_H
-#include <jobs.hpp>
-#include <vector>
-#include "index_collection.hpp"
+#include "job_sequence.hpp"
 
 namespace NP::Reconfiguration {
 	struct Attachment {
@@ -10,7 +8,7 @@ namespace NP::Reconfiguration {
 	};
 
 	struct Attachment_job_sequence : Attachment {
-		std::vector<JobID> chosen_job_ids;
+		Job_sequence job_sequence;
 	};
 
 	struct Attachment_failure_search final: Attachment_job_sequence {

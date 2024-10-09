@@ -1,9 +1,8 @@
 #include "doctest.h"
 
-#include <iostream>
-
 #include "global/space.hpp"
-#include "reconfiguration/agent.hpp"
+#include "reconfiguration/agent/failure_job_set.hpp"
+#include "reconfiguration/index_collection.hpp"
 #include "reconfiguration/pessimistic.hpp"
 #include "reconfiguration/solution.hpp"
 
@@ -28,14 +27,11 @@ TEST_CASE("Pessimistic reconfiguration strategy") {
 	};
 
 	auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
-	
-	Analysis_options test_options{};
-	test_options.early_exit = false;
-	test_options.use_supernodes = false;
 
-	auto original_failures = Reconfiguration::Agent_failure_search<dtime_t>::find_all_failures(problem, test_options);
+	Reconfiguration::Index_collection interesting_jobs;
+	Reconfiguration::Agent_failure_job_set_search<dtime_t>::find_all_jobs_on_paths_to_deadline_misses(problem, &interesting_jobs);
 
-	auto result = Reconfiguration::PessimisticReconfigurator<dtime_t>(problem, original_failures, &test_options).find_local_minimal_solution();
+	auto result = Reconfiguration::Pessimistic_reconfigurator<dtime_t>(problem, &interesting_jobs).find_local_minimal_solution();
 
 	CHECK(result.size() == 2);
 	auto solution1 = dynamic_cast<Reconfiguration::PessimisticExecutionTimeSolution<dtime_t>*>(result[0]);
@@ -44,7 +40,7 @@ TEST_CASE("Pessimistic reconfiguration strategy") {
 	CHECK(solution1->job_id.job == 1);
 	CHECK(solution1->bestCase == 1);
 	CHECK(solution1->worstCase == 2);
-	
+
 	auto solution2 = dynamic_cast<Reconfiguration::PessimisticExecutionTimeSolution<dtime_t>*>(result[1]);
 	CHECK(solution2);
 	CHECK(solution2->job_id.task == 6);
