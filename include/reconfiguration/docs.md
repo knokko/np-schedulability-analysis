@@ -55,6 +55,7 @@ The reconfiguration agent is allowed to manipulate the exploration process by fo
     found_one |= dispatch(n, j, upbnd_t_wc, t_high_wos);
 ```
 or by forbidding the merge of two nodes.
+// TODO Outdated
 ```diff
 for (Node_ref other : pair_it->second)
     {

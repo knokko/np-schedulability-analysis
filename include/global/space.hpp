@@ -1104,7 +1104,7 @@ namespace NP {
 						if (other->get_scheduled_jobs() != sched_jobs)
 							continue;
 
-						if (reconfiguration_agent && !reconfiguration_agent->allow_merge(n, *other)) continue;
+						if (reconfiguration_agent && !reconfiguration_agent->allow_merge(n, j, *other)) continue;
 
 						// If we have reached here, it means that we have found an existing node with the same 
 						// set of scheduled jobs as the new state resulting from scheduling job j in system state s.

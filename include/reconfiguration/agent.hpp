@@ -27,7 +27,7 @@ namespace NP::Reconfiguration {
 		}
 
 		virtual void encountered_dead_end(const Global::Schedule_node<Time> &dead_node) {
-			std::cout << "Encountered dead end\n";
+			//std::cout << "Encountered dead end\n";
 		}
 
 		virtual void finished_node(const Global::Schedule_node<Time> &dead_node) {
@@ -38,8 +38,12 @@ namespace NP::Reconfiguration {
 			return true;
 		}
 
-		virtual bool allow_merge(const Global::Schedule_node<Time> &node, const Global::Schedule_node<Time> &other) {
-			std::cout << "Allowing job merge\n";
+		virtual bool allow_merge(
+				const Global::Schedule_node<Time> &parent_node,
+				const Job<Time> &taken_job,
+				const Global::Schedule_node<Time> &destination_node
+		) {
+			//std::cout << "Allowing job merge\n";
 			return true;
 		}
 	};
