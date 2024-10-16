@@ -5,10 +5,11 @@
 
 #include "rating_graph.hpp"
 #include "index_collection.hpp"
+#include "sub_graph.hpp"
 
 namespace NP::Reconfiguration {
 	struct Rating_graph_cut {
-		std::unique_ptr<Index_collection> previous_jobs;
+		std::unique_ptr<Sub_graph> previous_jobs;
 		std::vector<Job_index> forbidden_jobs;
 		std::vector<Job_index> allowed_jobs;
 	};
@@ -83,16 +84,34 @@ namespace NP::Reconfiguration {
 
 		std::vector<Rating_graph_cut> cuts;
 		for (const auto &builder : cut_builders) {
-			auto previous_jobs = std::make_unique<Index_collection>();
-			int backtrack_node_index = builder.node_index;
+			Sub_graph previous_jobs;
+			std::vector<int> nodes_to_visit;
+			nodes_to_visit.push_back(builder.node_index);
 
-			while (backtrack_node_index > 0) {
-				// TODO Support graph of previous jobs
-				for (const auto &edge : graph.nodes[backtrack_node_index].edges) {
-					if (edge.destination_node_index < backtrack_node_index) {
-						backtrack_node_index = edge.destination_node_index;
-						previous_jobs->insert(edge.taken_job);
-						break;
+			std::vector<int> sub_graph_mapping;
+			sub_graph_mapping.reserve(graph.nodes.size());
+			for (int counter = 0; counter < graph.nodes.size(); counter++) sub_graph_mapping.push_back(-1);
+			sub_graph_mapping[builder.node_index] = 0;
+
+			while (nodes_to_visit.size() > 0) {
+				int current_node = nodes_to_visit[nodes_to_visit.size() - 1];
+				nodes_to_visit.pop_back();
+
+				int mapped_current_node = sub_graph_mapping[current_node];
+				assert(mapped_current_node >= 0);
+
+				for (const auto &edge : graph.nodes[current_node].edges) {
+					if (edge.destination_node_index < current_node) {
+						int destination_node = sub_graph_mapping[edge.destination_node_index];
+						if (destination_node >= 0) {
+							previous_jobs.add_edge_between_existing_nodes(
+									mapped_current_node, destination_node, edge.taken_job
+							);
+						} else {
+							destination_node = previous_jobs.add_edge_to_new_node(mapped_current_node, edge.taken_job);
+							sub_graph_mapping[edge.destination_node_index] = destination_node;
+							nodes_to_visit.push_back(destination_node);
+						}
 					}
 				}
 			}
@@ -112,7 +131,7 @@ namespace NP::Reconfiguration {
 				}
 			}
 			cuts.push_back(Rating_graph_cut {
-				.previous_jobs=std::move(previous_jobs),
+				.previous_jobs=std::make_unique<Sub_graph>(previous_jobs.reversed()),
 				.forbidden_jobs=builder.forbidden_jobs,
 				.allowed_jobs=allowed_jobs
 			});
