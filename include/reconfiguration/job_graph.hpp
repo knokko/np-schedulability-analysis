@@ -17,7 +17,7 @@ namespace NP::Reconfiguration {
 		std::vector<Job_graph_edge> back_edges;
 	};
 
-	class Job_tree {
+	class Job_graph {
 		std::vector<Job_graph_node> nodes;
 
 	public:

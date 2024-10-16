@@ -3,11 +3,11 @@
 
 #include "agent.hpp"
 #include "attachment.hpp"
-#include "tree_cutter.hpp"
+#include "graph_cutter.hpp"
 
 namespace NP::Reconfiguration {
 	template<class Time> class Agent_cut_check : public Agent<Time> {
-		Rating_tree_cut cut;
+		Rating_graph_cut cut;
 		bool has_expected_failure;
 		bool has_unexpected_failure;
 		bool has_correct_dead_end;

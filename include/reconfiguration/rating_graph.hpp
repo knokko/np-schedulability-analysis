@@ -1,5 +1,5 @@
-#ifndef RATING_TREE_H
-#define RATING_TREE_H
+#ifndef RATING_GRAPH_H
+#define RATING_GRAPH_H
 #include <ranges>
 #include <vector>
 
@@ -110,20 +110,20 @@ namespace NP::Reconfiguration {
 		int index;
 	};
 
-	template<class Time> class Agent_rating_tree : public Agent<Time> {
-		Rating_graph *rating_tree;
+	template<class Time> class Agent_rating_graph : public Agent<Time> {
+		Rating_graph *rating_graph;
 
 	public:
-		static void generate(Scheduling_problem<Time> &problem, Rating_graph &rating_tree) {
-			Agent_rating_tree agent;
-			agent.rating_tree = &rating_tree;
+		static void generate(Scheduling_problem<Time> &problem, Rating_graph &rating_graph) {
+			Agent_rating_graph agent;
+			agent.rating_graph = &rating_graph;
 
 			Analysis_options test_options;
 			test_options.early_exit = false;
 			test_options.use_supernodes = false;
 
 			Global::State_space<Time>::explore(problem, test_options, &agent);
-			rating_tree.compute_ratings();
+			rating_graph.compute_ratings();
 		}
 
 		Attachment* create_initial_node_attachment() override {
@@ -136,7 +136,7 @@ namespace NP::Reconfiguration {
 			const auto parent_attachment = dynamic_cast<Attachment_rating_node*>(parent_node.attachment);
 			assert(parent_attachment);
 			auto new_attachment = new Attachment_rating_node();
-			new_attachment->index = rating_tree->add_node(parent_attachment->index, next_job.get_job_index());
+			new_attachment->index = rating_graph->add_node(parent_attachment->index, next_job.get_job_index());
 			return new_attachment;
 		}
 
@@ -149,27 +149,27 @@ namespace NP::Reconfiguration {
 			assert(parent_attachment);
 			const auto child_attachment = dynamic_cast<Attachment_rating_node*>(destination_node->attachment);
 			assert(child_attachment);
-			rating_tree->insert_edge(parent_attachment->index, child_attachment->index, next_job.get_job_index());
+			rating_graph->insert_edge(parent_attachment->index, child_attachment->index, next_job.get_job_index());
 		}
 
 		void missed_deadline(const Global::Schedule_node<Time> &failed_node, const Job<Time> &late_job) override {
 			const auto attachment = dynamic_cast<Attachment_rating_node*>(failed_node.attachment);
 			assert(attachment);
-			rating_tree->set_missed_deadline(attachment->index);
+			rating_graph->set_missed_deadline(attachment->index);
 			std::cout << "missed deadline of job " << late_job.get_job_index() << " at index " << attachment->index << std::endl;
 		}
 
 		void finished_node(const Global::Schedule_node<Time> &node) override {
 			const auto attachment = dynamic_cast<Attachment_rating_node*>(node.attachment);
 			assert(attachment);
-			rating_tree->set_successful(attachment->index);
+			rating_graph->set_successful(attachment->index);
 		}
 
 		bool is_allowed(const Global::Schedule_node<Time> &node, const Job<Time> &next_job) override {
 			const auto attachment = dynamic_cast<Attachment_rating_node*>(node.attachment);
 			assert(attachment);
 
-			return !rating_tree->will_miss_deadline(attachment->index, next_job.get_job_index());
+			return !rating_graph->will_miss_deadline(attachment->index, next_job.get_job_index());
 		}
 
 		bool allow_merge(
@@ -183,8 +183,8 @@ namespace NP::Reconfiguration {
 			assert(destination_attachment);
 
 			// Only allow merges when both nodes haven't missed a deadline yet
-			return (rating_tree->nodes[destination_attachment->index].rating != -1.0) &&
-					!rating_tree->will_miss_deadline(parent_attachment->index, taken_job.get_job_index());
+			return (rating_graph->nodes[destination_attachment->index].rating != -1.0) &&
+				   !rating_graph->will_miss_deadline(parent_attachment->index, taken_job.get_job_index());
 		}
 	};
 }

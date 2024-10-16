@@ -7,12 +7,12 @@
 #include "index_collection.hpp"
 
 namespace NP::Reconfiguration {
-	struct Rating_tree_cut {
+	struct Rating_graph_cut {
 		std::unique_ptr<Index_collection> previous_jobs;
 		Job_index forbidden_job;
 	};
 
-	std::vector<Rating_tree_cut> cut_rating_tree(Rating_graph &tree) {
+	std::vector<Rating_graph_cut> cut_rating_graph(Rating_graph &graph) {
 		struct Cut_builder {
 			int node_index;
 			std::vector<Job_index> forbidden_jobs;
@@ -20,8 +20,8 @@ namespace NP::Reconfiguration {
 		std::vector<Cut_builder> cut_builders;
 
 		std::vector<bool> has_visited;
-		has_visited.reserve(tree.nodes.size());
-		for (int counter = 0; counter < tree.nodes.size(); counter++) has_visited.push_back(false);
+		has_visited.reserve(graph.nodes.size());
+		for (int counter = 0; counter < graph.nodes.size(); counter++) has_visited.push_back(false);
 
 		struct Node {
 			const int index;
@@ -37,7 +37,7 @@ namespace NP::Reconfiguration {
 			int node_index = branch[branch_index].index;
 			int edge_index = branch[branch_index].next_edge_index;
 
-			auto node = tree.nodes[node_index];
+			auto node = graph.nodes[node_index];
 
 			assert(node.rating > 0.0f);
 			if (node.rating == 1.0 || has_visited[node_index] || edge_index >= node.edges.size()) {
@@ -50,7 +50,7 @@ namespace NP::Reconfiguration {
 				for (const auto &edge : node.edges) {
 					if (edge.destination_node_index > node_index) {
 						branch[branch_index].largest_child_rating = std::max(
-								branch[branch_index].largest_child_rating, tree.nodes[edge.destination_node_index].rating
+								branch[branch_index].largest_child_rating, graph.nodes[edge.destination_node_index].rating
 						);
 					}
 				}
@@ -58,7 +58,7 @@ namespace NP::Reconfiguration {
 
 			branch[branch_index].next_edge_index += 1;
 			auto current_edge = node.edges[edge_index];
-			auto destination = tree.nodes[current_edge.destination_node_index];
+			auto destination = graph.nodes[current_edge.destination_node_index];
 			if (destination.rating == 1.0f || current_edge.destination_node_index < node_index) continue; // TODO Check if edge is already cut by a similar node in previous iterations
 
 			if (destination.rating < 0.4f && destination.rating < branch[branch_index].largest_child_rating - 0.4f) { // TODO Experiment with thresholds
@@ -80,7 +80,7 @@ namespace NP::Reconfiguration {
 			branch.push_back(Node { .index=current_edge.destination_node_index });
 		}
 
-		std::vector<Rating_tree_cut> cuts;
+		std::vector<Rating_graph_cut> cuts;
 		for (const auto &builder : cut_builders) {
 			// TODO Support multiple forbidden jobs
 			auto previous_jobs = std::make_unique<Index_collection>();
@@ -88,7 +88,7 @@ namespace NP::Reconfiguration {
 
 			while (backtrack_node_index > 0) {
 				// TODO Support graph of previous jobs
-				for (const auto &edge : tree.nodes[backtrack_node_index].edges) {
+				for (const auto &edge : graph.nodes[backtrack_node_index].edges) {
 					if (edge.destination_node_index < backtrack_node_index) {
 						backtrack_node_index = edge.destination_node_index;
 						previous_jobs->insert(edge.taken_job);
@@ -96,7 +96,7 @@ namespace NP::Reconfiguration {
 					}
 				}
 			}
-			cuts.push_back(Rating_tree_cut { .previous_jobs=std::move(previous_jobs), .forbidden_job=builder.forbidden_jobs[0] });
+			cuts.push_back(Rating_graph_cut { .previous_jobs=std::move(previous_jobs), .forbidden_job=builder.forbidden_jobs[0] });
 		}
 
 		return cuts;
