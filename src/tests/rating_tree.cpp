@@ -1,11 +1,22 @@
 #include "doctest.h"
 
 #include "global/space.hpp"
-#include "reconfiguration/rating_tree.hpp"
+#include "reconfiguration/cut_trial.hpp"
+#include "reconfiguration/tree_cutter.hpp"
+#include "reconfiguration/rating_graph.hpp"
 
 using namespace NP;
 
-TEST_CASE("Rating tree") {
+int get_edge_destination(Reconfiguration::Rating_graph &rating_tree, int node_index, Job_index taken_job) {
+	const auto node = rating_tree.nodes[node_index];
+	for (const auto &edge : node.edges) {
+		if (edge.taken_job == taken_job) return edge.destination_node_index;
+	}
+	REQUIRE(false);
+	return 0;
+}
+
+TEST_CASE("Rating tree + cutter") {
 	Global::State_space<dtime_t>::Workload jobs{
 			// high-frequency task
 			Job<dtime_t>{0, Interval<dtime_t>(0,  0), Interval<dtime_t>(1, 2), 10, 10, 0, 0},
@@ -25,46 +36,59 @@ TEST_CASE("Rating tree") {
 
 	auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
 
-	Reconfiguration::Rating_tree rating_tree;
+	Reconfiguration::Rating_graph rating_tree;
 	Reconfiguration::Agent_rating_tree<dtime_t>::generate(problem, rating_tree);
 
-	CHECK(rating_tree.nodes.size() == 11);
-
+	REQUIRE(rating_tree.nodes.size() == 11);
+	
 	// Node 0 is the root, and can only take job 0
 	CHECK(rating_tree.nodes[0].rating == 0.5f);
-	CHECK(rating_tree.nodes[0].children.size() == 1);
-	CHECK(rating_tree.nodes[0].children[0].taken_job == 0);
-	CHECK(rating_tree.nodes[0].children[0].child_index == 1);
+	REQUIRE(rating_tree.nodes[0].edges.size() == 1);
+	REQUIRE(get_edge_destination(rating_tree, 0, 0) == 1); // Takes job 0 to node 1
 
 	// Node 1 can only take job 6
 	CHECK(rating_tree.nodes[1].rating == 0.5f);
-	CHECK(rating_tree.nodes[1].children.size() == 1);
-	CHECK(rating_tree.nodes[1].children[0].taken_job == 6);
-	CHECK(rating_tree.nodes[1].children[0].child_index == 2);
+	REQUIRE(rating_tree.nodes[1].edges.size() == 2);
+	REQUIRE(get_edge_destination(rating_tree, 1, 0) == 0); // Back-edge to node 0
+	REQUIRE(get_edge_destination(rating_tree, 1, 6) == 2); // Takes job 6 to node 2
 
 	// Node 2 can take either job 1 or job 8, where job 8 is a poor choice
 	CHECK(rating_tree.nodes[2].rating == 0.5f);
-	CHECK(rating_tree.nodes[2].children.size() == 2);
-	int failed_node_index = rating_tree.nodes[2].children[0].child_index;
-	int node_index3 = rating_tree.nodes[2].children[1].child_index;
-	if (rating_tree.nodes[2].children[1].taken_job == 8) {
-		CHECK(rating_tree.nodes[2].children[0].taken_job == 1);
-		failed_node_index = node_index3;
-	} else {
-		CHECK(rating_tree.nodes[2].children[1].taken_job == 1);
-		CHECK(rating_tree.nodes[2].children[0].taken_job == 8);
-	}
+	REQUIRE(rating_tree.nodes[2].edges.size() == 3);
+	CHECK(get_edge_destination(rating_tree, 2, 6) == 1); // Back-edge to node 1
 
+	int failed_node_index = get_edge_destination(rating_tree, 2, 8);
 	CHECK(rating_tree.nodes[failed_node_index].rating == 0.0);
-	CHECK(rating_tree.nodes[failed_node_index].children.size() == 0);
+	REQUIRE(rating_tree.nodes[failed_node_index].edges.size() == 1);
+	CHECK(get_edge_destination(rating_tree, failed_node_index, 8) == 2); // Back-edge to node 2
 
-	for (int index = 3; index < rating_tree.nodes.size(); index++) {
-		if (index == failed_node_index) continue;
+	int right_node_index = get_edge_destination(rating_tree, 2, 1);
+	CHECK(rating_tree.nodes[right_node_index].rating == 1.0);
+	REQUIRE(rating_tree.nodes[right_node_index].edges.size() == 2);
+	CHECK(get_edge_destination(rating_tree, right_node_index, 1) == 2); // Back-edge to node 2
+	CHECK(get_edge_destination(rating_tree, right_node_index, 8) == 5);
+
+	for (int index = 5; index < rating_tree.nodes.size(); index++) {
 		CHECK(rating_tree.nodes[index].rating == 1.0);
 
 		if (index != rating_tree.nodes.size() - 1) {
-			CHECK(rating_tree.nodes[index].children.size() == 1);
-			CHECK(rating_tree.nodes[index].children[0].child_index > index);
-		} else CHECK(rating_tree.nodes[index].children.size() == 0);
+			REQUIRE(rating_tree.nodes[index].edges.size() == 2);
+			for (const auto &edge : rating_tree.nodes[index].edges) {
+				if (index > 5 && edge.destination_node_index < index) CHECK(edge.destination_node_index == index - 1);
+				if (edge.destination_node_index > index) CHECK(edge.destination_node_index == index + 1);
+			}
+		} else {
+			REQUIRE(rating_tree.nodes[index].edges.size() == 1);
+			CHECK(get_edge_destination(rating_tree, index, 5) == 9);
+		}
+	}
+
+	auto cuts = Reconfiguration::cut_rating_tree(rating_tree);
+	CHECK(cuts.size() == 1);
+	auto cut = &cuts[0];
+	CHECK(cut->forbidden_job == 8);
+	for (Job_index job_index = 0; job_index < jobs.size(); job_index++) {
+		if (job_index == 0 || job_index == 6) CHECK(cut->previous_jobs->contains(job_index));
+		else CHECK(!cut->previous_jobs->contains(job_index));
 	}
 }

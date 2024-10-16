@@ -17,6 +17,10 @@ namespace NP::Reconfiguration {
             return set.get_vector_size() > 0;
         }
     public:
+		int size() const {
+			if (uses_set()) return set.size();
+			else return vector.size();
+		}
 
         bool contains(Job_index job_index) const {
             if (uses_set()) return set.contains(job_index);

@@ -8,29 +8,29 @@
 
 namespace NP::Reconfiguration {
 	struct Rating_edge {
-		const int child_index;
+		const int destination_node_index;
 		const Job_index taken_job;
 
 		void print() const {
-			std::cout << "  child_index = " << child_index << " with job index " << taken_job << std::endl;
+			std::cout << "  destination_node_index = " << destination_node_index << " with job index " << taken_job << std::endl;
 		}
 	};
 
 	struct Rating_node {
-		std::vector<Rating_edge> children;
+		std::vector<Rating_edge> edges;
 		float rating;
 
 		void print() const {
-			std::cout << "rating = " << rating << " and child edges are: " << std::endl;
-			for (const auto & child : children) child.print();
+			std::cout << "rating = " << rating << " and edges are: " << std::endl;
+			for (const auto &edge : edges) edge.print();
 		}
 	};
 
-	class Rating_tree {
+	class Rating_graph {
 	public:
 		std::vector<Rating_node> nodes;
 
-		Rating_tree() {
+		Rating_graph() {
 			nodes.push_back(Rating_node {});
 		}
 
@@ -40,18 +40,19 @@ namespace NP::Reconfiguration {
 
 			int child_index = nodes.size();
 			std::cout << "Add edge from " << parent_index << " to " << child_index << " with job " << taken_job << std::endl;
-			nodes[parent_index].children.push_back(Rating_edge { .child_index=child_index, .taken_job=taken_job });
+			nodes[parent_index].edges.push_back(Rating_edge { .destination_node_index=child_index, .taken_job=taken_job });
 			nodes.push_back(Rating_node { });
+			nodes[child_index].edges.push_back(Rating_edge { .destination_node_index=parent_index, .taken_job=taken_job });
 			return child_index;
 		}
 
 		void insert_edge(int parent_index, int child_index, Job_index taken_job) {
-			assert(parent_index >= 0);
-			assert(child_index >= 0);
+			assert(parent_index >= 0 && parent_index < nodes.size());
+			assert(child_index >= 0 && child_index < nodes.size());
 			assert(taken_job >= 0);
-			assert(parent_index < nodes.size());
-			assert(child_index < nodes.size());
-			nodes[parent_index].children.push_back(Rating_edge { .child_index=child_index, .taken_job=taken_job });
+			assert(parent_index < child_index);
+			nodes[parent_index].edges.push_back(Rating_edge { .destination_node_index=child_index, .taken_job=taken_job });
+			nodes[child_index].edges.push_back(Rating_edge { .destination_node_index=parent_index, .taken_job=taken_job });
 		}
 
 		void set_missed_deadline(int node_index) {
@@ -61,39 +62,46 @@ namespace NP::Reconfiguration {
 		}
 
 		void set_successful(int node_index) {
-			assert(node_index >= 0);
-			assert(node_index < nodes.size());
-			if (nodes[node_index].children.size() == 0) {
-				nodes[node_index].rating = 1.0f;
+			assert(node_index >= 0 && node_index < nodes.size());
+
+			bool has_children = false;
+			for (const auto &edge : nodes[node_index].edges) {
+				if (edge.destination_node_index > node_index) {
+					nodes[edge.destination_node_index].rating = 1.0f;
+					has_children = true;
+				}
 			}
 
-			for (const auto &edge : nodes[node_index].children) {
-				nodes[edge.child_index].rating = 1.0f;
-			}
+			if (!has_children) nodes[node_index].rating = 1.0f;
 		}
 
 		bool will_miss_deadline(int parent_index, Job_index candidate_job) const {
-			assert(node_index >= 0);
-			assert(node_index < nodes.size());
+			assert(parent_index >= 0 && parent_index < nodes.size());
 			if (nodes[parent_index].rating == -1.0f) return true;
-			for (const auto &edge : nodes[parent_index].children) {
-				if (edge.child_index == candidate_job && nodes[edge.child_index].rating == -1.0f) return true;
+			for (const auto &edge : nodes[parent_index].edges) {
+				if (edge.taken_job == candidate_job && nodes[edge.destination_node_index].rating == -1.0f) return true;
 			}
 			return false;
 		}
 
 		void compute_ratings() {
-			for (auto &node : std::ranges::views::reverse(nodes)) {
-				// rating == -1 implies that the node misses a deadline, so its rating should just be 0
+			for (int index = nodes.size() - 1; index >= 0; index--) {
+				auto &node = nodes[index];
 				if (node.rating == -1.0f) {
 					node.rating = 0.0f;
-					node.children.clear();
+					std::cout << "cleared rating of node " << index << std::endl;
+					//node.children.clear();
+					continue; // TODO Check whether above line was needed
 				}
 
-				for (const auto &edge : node.children) {
-					node.rating += nodes[edge.child_index].rating;
+				int num_children = 0;
+				for (const auto &edge : node.edges) {
+					if (edge.destination_node_index > index) {
+						node.rating += nodes[edge.destination_node_index].rating;
+						num_children += 1;
+					}
 				}
-				if (node.children.size() > 1) node.rating /= node.children.size();
+				if (num_children > 1) node.rating /= num_children;
 			}
 		}
 	};
@@ -103,10 +111,10 @@ namespace NP::Reconfiguration {
 	};
 
 	template<class Time> class Agent_rating_tree : public Agent<Time> {
-		Rating_tree *rating_tree;
+		Rating_graph *rating_tree;
 
 	public:
-		static void generate(Scheduling_problem<Time> &problem, Rating_tree &rating_tree) {
+		static void generate(Scheduling_problem<Time> &problem, Rating_graph &rating_tree) {
 			Agent_rating_tree agent;
 			agent.rating_tree = &rating_tree;
 
