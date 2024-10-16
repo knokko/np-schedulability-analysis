@@ -1,7 +1,7 @@
 #include "doctest.h"
 
 #include "global/space.hpp"
-#include "reconfiguration/cut_trial.hpp"
+//#include "reconfiguration/cut_trial.hpp"
 #include "reconfiguration/graph_cutter.hpp"
 #include "reconfiguration/rating_graph.hpp"
 
@@ -84,9 +84,12 @@ TEST_CASE("Rating graph + cutter") {
 	}
 
 	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
-	CHECK(cuts.size() == 1);
+	REQUIRE(cuts.size() == 1);
 	auto cut = &cuts[0];
-	CHECK(cut->forbidden_job == 8);
+	REQUIRE(cut->forbidden_jobs.size() == 1);
+	CHECK(cut->forbidden_jobs[0] == 8);
+	REQUIRE(cut->allowed_jobs.size() == 1);
+	CHECK(cut->allowed_jobs[0] == 1);
 	for (Job_index job_index = 0; job_index < jobs.size(); job_index++) {
 		if (job_index == 0 || job_index == 6) CHECK(cut->previous_jobs->contains(job_index));
 		else CHECK(!cut->previous_jobs->contains(job_index));

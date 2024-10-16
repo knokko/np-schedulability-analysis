@@ -9,7 +9,8 @@
 namespace NP::Reconfiguration {
 	struct Rating_graph_cut {
 		std::unique_ptr<Index_collection> previous_jobs;
-		Job_index forbidden_job;
+		std::vector<Job_index> forbidden_jobs;
+		std::vector<Job_index> allowed_jobs;
 	};
 
 	std::vector<Rating_graph_cut> cut_rating_graph(Rating_graph &graph) {
@@ -82,7 +83,6 @@ namespace NP::Reconfiguration {
 
 		std::vector<Rating_graph_cut> cuts;
 		for (const auto &builder : cut_builders) {
-			// TODO Support multiple forbidden jobs
 			auto previous_jobs = std::make_unique<Index_collection>();
 			int backtrack_node_index = builder.node_index;
 
@@ -96,7 +96,26 @@ namespace NP::Reconfiguration {
 					}
 				}
 			}
-			cuts.push_back(Rating_graph_cut { .previous_jobs=std::move(previous_jobs), .forbidden_job=builder.forbidden_jobs[0] });
+
+			std::vector<Job_index> allowed_jobs;
+			for (const auto &edge : graph.nodes[builder.node_index].edges) {
+				if (edge.destination_node_index > builder.node_index) {
+					bool is_forbidden = false;
+					for (const auto forbidden_job : builder.forbidden_jobs) {
+						if (edge.taken_job == forbidden_job) {
+							is_forbidden = true;
+							break;
+						}
+					}
+
+					if (!is_forbidden) allowed_jobs.push_back(edge.taken_job);
+				}
+			}
+			cuts.push_back(Rating_graph_cut {
+				.previous_jobs=std::move(previous_jobs),
+				.forbidden_jobs=builder.forbidden_jobs,
+				.allowed_jobs=allowed_jobs
+			});
 		}
 
 		return cuts;
