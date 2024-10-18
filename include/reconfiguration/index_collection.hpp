@@ -3,7 +3,6 @@
 #include "index_set.hpp"
 #include "jobs.hpp"
 #include <vector>
-#include <ntdef.h>
 #include <iterator>
 #include <cstddef>
 
@@ -11,15 +10,15 @@ namespace NP::Reconfiguration {
     class Index_collection {
         Index_set set;
         std::vector<Job_index> vector;
-        Job_index largest_index;
+        Job_index largest_index = 0;
+        size_t current_size = 0;
 
         bool uses_set() const {
             return set.get_vector_size() > 0;
         }
     public:
-		int size() const {
-			if (uses_set()) return set.size();
-			else return vector.size();
+		size_t size() const {
+			return current_size;
 		}
 
         bool contains(Job_index job_index) const {
@@ -30,30 +29,41 @@ namespace NP::Reconfiguration {
         void insert(Job_index new_index) {
             auto new_largest_index = std::max(largest_index, new_index);
             auto potential_set_size = (new_largest_index / 64) * 8;
-            auto potential_vector_size = (vector.size() + 1) * sizeof(Job_index);
+            auto potential_vector_size = (this->size() + 1) * sizeof(Job_index);
             bool should_use_set = potential_set_size <= 10 * potential_vector_size;
 
             // Convert from vector to set
             if (should_use_set && !uses_set()) {
                 set.add(new_largest_index);
                 for (const auto job_index : vector) set.add(job_index);
+            	this->current_size = set.size();
                 vector.clear();
             }
 
             // Convert from set to vector
             if (!should_use_set && uses_set()) {
-				for (const auto job_index : *this) vector.push_back(job_index);
+            	std::vector<Job_index> new_vector;
+				for (const auto job_index : *this) new_vector.push_back(job_index);
                 set.clear();
+            	this->vector = new_vector;
+            	this->current_size = vector.size();
             }
 
-            if (uses_set()) set.add(new_index);
-            else if (!contains(new_index)) vector.push_back(new_index);
+            if (uses_set()) {
+            	if (!set.contains(new_index)) {
+            		set.add(new_index);
+            		current_size += 1;
+            	}
+            } else if (!contains(new_index)) {
+	            vector.push_back(new_index);
+            	current_size += 1;
+            }
 			largest_index = new_largest_index;
         }
 
         void merge(Index_collection *other) {
-            largest_index = std::max(this->largest_index, other->largest_index);
-            this->insert(largest_index);
+            const Job_index new_largest_index = std::max(this->largest_index, other->largest_index);
+            this->insert(new_largest_index);
             for (const auto job_index : *other) this->insert(job_index);
         }
 
