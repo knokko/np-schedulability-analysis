@@ -1,3 +1,4 @@
+#ifndef CONFIG_PARALLEL
 #include "doctest.h"
 #undef NDEBUG
 
@@ -114,3 +115,4 @@ TEST_CASE("Rating graph + cutter") {
 	problem.jobs[6] = Job<dtime_t>{6, Interval<dtime_t>(0,  0), Interval<dtime_t>(70, 80), 30, 30, 6, 6};
 	CHECK(Reconfiguration::Agent_cut_check<dtime_t>::was_cut_fixed(problem, cuts[0]) == 2);
 }
+#endif

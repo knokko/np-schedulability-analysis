@@ -1,3 +1,4 @@
+#ifndef CONFIG_PARALLEL
 #include "doctest.h"
 
 #include "global/space.hpp"
@@ -48,3 +49,4 @@ TEST_CASE("Pessimistic reconfiguration strategy") {
 	CHECK(solution2->bestCase == 7);
 	CHECK(solution2->worstCase == 8);
 }
+#endif

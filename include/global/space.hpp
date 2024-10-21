@@ -52,6 +52,11 @@ namespace NP {
 				const Analysis_options& opts,
 				Reconfiguration::Agent<Time> *reconfiguration_agent = nullptr)
 			{
+#ifdef CONFIG_PARALLEL
+				if (reconfiguration_agent) {
+					throw std::invalid_argument("Reconfiguration agents are not supported in multi-threaded analyses");
+				}
+#endif
 				State_space* s = new State_space(prob.jobs, prob.prec, prob.aborts, prob.num_processors,
 					opts.timeout, opts.max_depth, opts.early_exit, opts.use_supernodes, reconfiguration_agent);
 				s->be_naive = opts.be_naive;
@@ -1226,7 +1231,7 @@ namespace NP {
 									if (nodes_by_key.find(acc, next_key)) {
 										// If be_naive, a new node and a new state should be created for each new job dispatch.
 										if (be_naive) {
-											next = &(new_node_at(acc, n, j, j.get_job_index(), earliest_possible_job_release(n, j), earliest_certain_source_job_release(n, j), earliest_certain_sequential_source_job_release(n, j)));
+											next = &(new_node_at(acc, n, j, j.get_job_index(), earliest_possible_job_release(n, j), earliest_certain_source_job_release(n, j), earliest_certain_sequential_source_job_release(n, j), nullptr));
 										}
 										else
 										{
@@ -1238,13 +1243,13 @@ namespace NP {
 												}
 											}
 											if (next == nullptr) {
-												next = &(new_node_at(acc, n, j, j.get_job_index(), earliest_possible_job_release(n, j), earliest_certain_source_job_release(n, j), earliest_certain_sequential_source_job_release(n, j)));
+												next = &(new_node_at(acc, n, j, j.get_job_index(), earliest_possible_job_release(n, j), earliest_certain_source_job_release(n, j), earliest_certain_sequential_source_job_release(n, j), nullptr));
 											}
 										}
 									}
 									if (next == nullptr) {
 										if (nodes_by_key.insert(acc, next_key)) {
-											next = &(new_node_at(acc, n, j, j.get_job_index(), earliest_possible_job_release(n, j), earliest_certain_source_job_release(n, j), earliest_certain_sequential_source_job_release(n, j)));
+											next = &(new_node_at(acc, n, j, j.get_job_index(), earliest_possible_job_release(n, j), earliest_certain_source_job_release(n, j), earliest_certain_sequential_source_job_release(n, j), nullptr));
 										}
 									}
 									// if we raced with concurrent creation, try again
@@ -1253,7 +1258,7 @@ namespace NP {
 							// If be_naive, a new node and a new state should be created for each new job dispatch.
 							else if (be_naive) {
 								// note that the accessor should be pointing on something at this point
-								next = &(new_node_at(acc, n, j, j.get_job_index(), earliest_possible_job_release(n, j), earliest_certain_source_job_release(n, j), earliest_certain_sequential_source_job_release(n, j)));
+								next = &(new_node_at(acc, n, j, j.get_job_index(), earliest_possible_job_release(n, j), earliest_certain_source_job_release(n, j), earliest_certain_sequential_source_job_release(n, j), nullptr));
 							}
 							assert(!acc.empty());
 #else

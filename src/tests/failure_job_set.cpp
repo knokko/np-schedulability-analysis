@@ -1,3 +1,4 @@
+#ifndef CONFIG_PARALLEL
 #include "doctest.h"
 
 #include "global/space.hpp"
@@ -34,3 +35,4 @@ TEST_CASE("Agent_failure_job_set_search") {
 	CHECK(!interesting_jobs.contains(7));
 	CHECK(interesting_jobs.contains(8));
 }
+#endif
