@@ -6,43 +6,88 @@
 #include "graph_cutter.hpp"
 
 namespace NP::Reconfiguration {
+	struct Attachment_cut_trial final: Attachment {
+		int node_index;
+	};
 	template<class Time> class Agent_cut_check : public Agent<Time> {
 		Rating_graph_cut cut;
-		bool has_expected_failure;
-		bool has_unexpected_failure;
-		bool has_correct_dead_end;
-
-		bool has_taken_previous_cut_jobs(const Global::Schedule_node<Time> &node) {
-			for (auto job_index : *cut.previous_jobs) {
-				if (!node.get_scheduled_jobs().contains(job_index)) return false;
-			}
-			return true;
-		}
+		int leaf_index = 0;
+		bool has_expected_failure = false;
+		bool has_unexpected_failure = false;
 	public:
-		void missed_deadline(const Global::Schedule_node<Time> &failed_node, const Job<Time> &late_job) override {
-			bool was_expected = has_taken_previous_cut_jobs(failed_node) && failed_node.get_scheduled_jobs().contains(cut.forbidden_job);
+		static int was_cut_fixed(Scheduling_problem<Time> &problem, Rating_graph_cut cut) {
+			Agent_cut_check agent;
+			agent.cut = cut;
 
-			std::cout << "missed deadline of job " << late_job.get_job_index() << " expected? " << was_expected << std::endl;
-			if (was_expected) has_expected_failure = true;
+			Analysis_options test_options;
+			test_options.early_exit = true;
+			test_options.use_supernodes = false;
+
+			Global::State_space<Time>::explore(problem, test_options, &agent);
+			if (agent.has_expected_failure) return 1;
+			if (agent.has_unexpected_failure) return 2;
+			return 0;
+		}
+
+		Attachment* create_initial_node_attachment() override {
+			return new Attachment_cut_trial {};
+		}
+
+		Attachment* create_next_node_attachment(
+				const Global::Schedule_node<Time> &parent_node, Job<Time> next_job
+		) override {
+			const auto parent_attachment = dynamic_cast<Attachment_cut_trial*>(parent_node.attachment);
+			assert(parent_attachment);
+			assert(parent_attachment->node_index >= -3);
+			assert(parent_attachment->node_index != -1);
+
+			auto new_attachment = new Attachment_cut_trial();
+
+			if (parent_attachment->node_index == -2 || parent_attachment->node_index == -3) {
+				new_attachment->node_index = -4;
+			} else if (cut.previous_jobs->is_leaf(parent_attachment->node_index)) {
+				if (leaf_index > 0) assert(leaf_index == parent_attachment->node_index);
+				leaf_index = parent_attachment->node_index;
+
+				bool is_allowed = std::find(cut.allowed_jobs.begin(), cut.allowed_jobs.end(), next_job.get_job_index()) != cut.allowed_jobs.end();
+				bool is_forbidden = std::find(cut.forbidden_jobs.begin(), cut.forbidden_jobs.end(), next_job.get_job_index()) != cut.forbidden_jobs.end();
+				assert(is_allowed || is_forbidden);
+				assert(!is_allowed || !is_forbidden);
+
+				if (is_allowed) new_attachment->node_index = -2;
+				else new_attachment->node_index = -3;
+			} else {
+				new_attachment->node_index = cut.previous_jobs->can_take_job(parent_attachment->node_index, next_job.get_job_index());
+				assert(new_attachment->node_index > 0);
+			}
+
+			return new_attachment;
+		}
+
+		void missed_deadline(const Global::Schedule_node<Time> &failed_node, const Job<Time> &late_job) override {
+			const auto attachment = dynamic_cast<Attachment_cut_trial*>(failed_node.attachment);
+			assert(attachment);
+
+			if (attachment->node_index == -4) return; // These nodes are out-of-scope
+			if (attachment->node_index == -3) has_expected_failure = true;
 			else has_unexpected_failure = true;
 		}
 
 		void encountered_dead_end(const Global::Schedule_node<Time> &dead_node) override {
-			bool took_previous_jobs = has_taken_previous_cut_jobs(dead_node);
-			bool took_forbidden_job = dead_node.get_scheduled_jobs().contains(cut.forbidden_job);
+			const auto attachment = dynamic_cast<Attachment_cut_trial*>(dead_node.attachment);
+			assert(attachment);
 
-			std::cout << "dead end after " << dead_node.get_scheduled_jobs().size() << " took previous? " << took_forbidden_job << " took forbidden? " << took_forbidden_job << std::endl;
-			if (took_previous_jobs && !took_forbidden_job && dead_node.get_scheduled_jobs().size() == cut.previous_jobs->size()) {
-				has_correct_dead_end = true;
-				return;
-			}
-
-			if (took_previous_jobs && took_forbidden_job) has_expected_failure = true;
-			else has_unexpected_failure = true;
+			if (attachment->node_index >= 0 || attachment->node_index == -2) has_unexpected_failure = true;
+			if (attachment->node_index == -3) has_expected_failure = true;
 		}
 
 		bool is_allowed(const Global::Schedule_node<Time> &node, const Job<Time> &next_job) override {
-			return cut.previous_jobs->contains(next_job.get_job_index()) || cut.forbidden_job == next_job.get_job_index();
+			const auto attachment = dynamic_cast<Attachment_cut_trial*>(node.attachment);
+			assert(attachment);
+
+			if (attachment->node_index == -4) return false;
+			if (attachment->node_index == -2 || attachment->node_index == -3 || cut.previous_jobs->is_leaf(attachment->node_index)) return true;
+			return cut.previous_jobs.get()->can_take_job(attachment->node_index, next_job.get_job_index()) > 0;
 		}
 	};
 }

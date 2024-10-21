@@ -39,7 +39,6 @@ namespace NP::Reconfiguration {
 			if (will_miss_deadline(parent_index, taken_job)) return parent_index;
 
 			int child_index = nodes.size();
-			std::cout << "Add edge from " << parent_index << " to " << child_index << " with job " << taken_job << std::endl;
 			nodes[parent_index].edges.push_back(Rating_edge { .destination_node_index=child_index, .taken_job=taken_job });
 			nodes.push_back(Rating_node { });
 			nodes[child_index].edges.push_back(Rating_edge { .destination_node_index=parent_index, .taken_job=taken_job });
@@ -89,9 +88,7 @@ namespace NP::Reconfiguration {
 				auto &node = nodes[index];
 				if (node.rating == -1.0f) {
 					node.rating = 0.0f;
-					std::cout << "cleared rating of node " << index << std::endl;
-					//node.children.clear();
-					continue; // TODO Check whether above line was needed
+					continue;
 				}
 
 				int num_children = 0;

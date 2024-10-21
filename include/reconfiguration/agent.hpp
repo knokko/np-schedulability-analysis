@@ -31,7 +31,7 @@ namespace NP::Reconfiguration {
 		}
 
 		virtual void finished_node(const Global::Schedule_node<Time> &dead_node) {
-			std::cout << "Finished node\n";
+			//std::cout << "Finished node\n";
 		}
 
 		virtual bool is_allowed(const Global::Schedule_node<Time> &node, const Job<Time> &next_job) {

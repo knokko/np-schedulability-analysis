@@ -32,6 +32,11 @@ namespace NP::Reconfiguration {
 			return -1;
 		}
 
+		bool is_leaf(int node) {
+			assert(node >= 0 && node < nodes.size());
+			return this->nodes[node].edges.empty();
+		}
+
 		int add_edge_to_new_node(int start_node, Job_index taken_job) {
 			assert(start_node >= 0 && start_node < nodes.size());
 			int end_node = nodes.size();

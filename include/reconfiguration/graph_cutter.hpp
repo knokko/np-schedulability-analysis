@@ -9,7 +9,7 @@
 
 namespace NP::Reconfiguration {
 	struct Rating_graph_cut {
-		std::unique_ptr<Sub_graph> previous_jobs;
+		std::shared_ptr<Sub_graph> previous_jobs;
 		std::vector<Job_index> forbidden_jobs;
 		std::vector<Job_index> allowed_jobs;
 	};
