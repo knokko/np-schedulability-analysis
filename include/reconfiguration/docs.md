@@ -3,7 +3,11 @@
 I added a `--reconfigure` argument to the CLI. When present, the tool will call
 `NP::Reconfiguration::Manager::run_with_automatic_reconfiguration(const Options options, Scheduling_problem<Time> problem)`.
 The `run_with_automatic_reconfiguration` function will check whether the given problem is schedulable. If it's already schedulable,
-it will just print `The given problem is already schedulable` and quit.
+it will just print
+```
+The given problem is already schedulable
+```
+and quit.
 
 If it's not schedulable, it will try a number of *reconfiguration strategies* to find potential adaptations that would make
 the problem schedulable. As soon as any strategy finds a solution, it will be printed to stdout, after which it quits. An
@@ -14,7 +18,11 @@ Increase the best-case running time of the job with ID T1J1 from 1 to the worst-
 Increase the best-case running time of the job with ID T2J7 from 7 to the worst-case running time 8
 ```
 When a strategy does not manage to find a solution, the program will attempt the next strategy. When all strategies fail,
-it will print `The given problem is not schedulable, and I couldn't find a solution to fix it`, and quit.
+it will print 
+```
+The given problem is not schedulable, and I couldn't find a solution to fix it
+```
+and quit.
 
 ## The reconfiguration agent
 All strategies work by repeatedly checking whether the problem is schedulable (each time with a slight variation of the
@@ -55,14 +63,13 @@ The reconfiguration agent is allowed to manipulate the exploration process by fo
     found_one |= dispatch(n, j, upbnd_t_wc, t_high_wos);
 ```
 or by forbidding the merge of two nodes.
-// TODO Outdated
 ```diff
 for (Node_ref other : pair_it->second)
     {
         if (other->get_scheduled_jobs() != sched_jobs)
             continue;
 
-+		if (reconfiguration_agent && !reconfiguration_agent->allow_merge(n, *other)) continue;
++		if (reconfiguration_agent && !reconfiguration_agent->allow_merge(n, j, *other)) continue;
 +
         // If we have reached here, it means that we have found an existing node with the same 
         // set of scheduled jobs than the new state resuting from scheduling job j in system state s.
@@ -70,6 +77,7 @@ for (Node_ref other : pair_it->second)
         if (other->merge_states(st, false))
         {
             delete& st;
++           if (reconfiguration_agent) reconfiguration_agent->merge_node_attachments(other, n, j);
             return *other;
         }
     }
@@ -117,8 +125,8 @@ The `State_space` allows the reconfiguration agent to create the attachments:
         earliest_certain_sequential_source_job_release(n, j),
 +       attachment);
 ```
-The agents mostly use this to record the edges that lead to a node, which can be very useful (e.g. which sequence of jobs
-lead to a deadline miss?).
+Most reconfiguration agents need attachments to keep track of some data, for instance whether a deadline has been missed already,
+or more detailed information about the taken edges. Some even track the relation with nodes in another graph.
 
 ### Signalling
 Finally, the `State_space` will also signal deadline misses, dead ends, and completions to the reconfiguration agent.
@@ -143,33 +151,11 @@ if (j.exceeds_deadline(range.upto())) {
 +       reconfiguration_agent->finished_node(n);
     }
 ```
-This information is very useful, especially while also tracking the job sequence via the attachments:
-it allows the agent to figure out which edges lead to deadline misses.
-
-## Finding the 'bad' edges
-Since every strategy so far needs to know which edges need to be avoided, the flow always starts with
-finding all the edges that cause deadline misses. The `Agent_failure_search` class is used to find all
-edges that lead to deadline misses or dead ends.
-
-### Tracking the initial failures
-It will store the sequence of scheduled jobs in the attachment of each node, and it maintains a list of 
-*failures*, where each failure is a sequence of jobs that will lead to a deadline miss or dead end.
-Whenever the `State_space` signals a dead end or deadline miss, the corresponding job sequence is added to
-the list of failures.
-
-### Finding the root failures
-When all outgoing edges in a node lead to a failure, the node is basically a dead end,
-and the edge leading to that node is also considered to be a failure. The job sequence leading to that
-node will thus be added to the list of failures. Furthermore, all child sequences will be removed from
-the list of failures, since they can't be reached when the parent job sequence is not taken.
-
-The graph will be explored multiple times, until the list of failures converges.
-The agent will also forbid the exploration from taking edges that can only lead to failures,
-which reduces the search space in later iterations.
+This information is very useful, for instance to find out where deadline misses happen, or whether a particular deadline
+miss has been prevented.
 
 ## The strategies
-Once the program knows which edges should be avoided, the actual strategies will try to find a way
-to avoid all these edges.
+Each strategy will explore the problem repeatedly, each time with a slight variation and/or a different reconfiguration agent.
 
 ### The pessimism strategy
 Since the scheduler is assumed to be non-preemptive, it is possible that failures occur only when
@@ -179,9 +165,12 @@ accomplish this). The pessimism strategy will try to make the problem schedulabl
 jobs always use their WCET.
 
 It starts by creating a copy of the problem, called the *adapted problem*, and changing the BCET of
-all jobs to their WCET, and also change their best-case arrival times to their worst-case arrival
-times. It will then call `State_space<Time>::explore` to check whether the *adapted problem* is
-schedulable. If not, it will give up (and the program will try the next strategy).
+all *interesting* jobs to their WCET, and also change their best-case arrival times to their worst-case 
+arrival times. To determine which jobs are *interesting*, it will explore the graph with a reconfiguration
+agent that tracks which jobs are taken between the start of the exploration, and the nodes where deadlines
+are missed. Any job that is taken anywhere before a deadline miss, is deemed *interesting*.
+After making all *interesting* jobs pessimistic, it will call `State_space<Time>::explore` to check whether 
+the *adapted problem* is schedulable. If not, it will give up (and the program will try the next strategy).
 
 If the *adapted problem* is schedulable, the strategy knows that the problem can be made schedulable
 by simply assuming pessimistic execution times and arrival times. I could simply tell the user to
@@ -192,7 +181,7 @@ Ideally, I would find the minimum number of jobs that need to become pessimistic
 probably an NP-hard problem. Instead, I will look for a local minimal number of jobs that need to
 become pessimistic. It will use the following procedure:
 ```
-for each job in the adapted problem:
+for each interesting job in the adapted problem:
   reset its BCET to the original BCET
   if the adapted problem is still schedulable:
     keep the original BCET
@@ -210,28 +199,116 @@ Finally, it will print the list of BCET jobs and BCAT jobs to stdout. This will 
 of jobs since removing the pessimism of any job will make the problem unschedulable. Since this strategy
 managed to find a solution, no other strategies will be tried, and the problem quits.
 
-### The precedence strategy
-It is often possible to avoid bad edges by adding 'artificial' preceding constraints. Consider the case when
-the edge from node *v* to *x* leads to a deadline miss. There are also edges from *v* to *y* and *v* to *z*
-that don't lead to deadline misses. In this example, there are 2 solutions to fix the problem:
-- Add an artificial precedence constraint to ensure that job *y* completes before job *x*
-- Add an artificial precedence constraint to ensure that job *z* completes before job *x*
+Note that this strategy needs to be revisited in the future since trying each job 1-by-1 will take too
+much time when there are thousands of jobs...
 
-Either solution may or may not cause dead ends elsewhere in the graph. Currently, the strategy simply creates
-an *adapted problem* with each precedence constraint that might work, and calls `State_space<Time>::explore`
-to check whether it doesn't cause additional problems. As soon as it finds a constraint that works, it will
-print the constraint to stdout, and quit the program. An example solution is given below. If all candidate
-constraints fail, it will give up (and the program will attempt the next strategy).
-```
-The given problem is not schedulable, but you can make it schedulable by following these steps:
-Add a precedence constraint to ensure that T1J2 must finish before T3J9 can start
-```
+### The rating graph strategy
+The rating graph strategy starts by exploring the problem, while using a reconfiguration agent that will give
+each node in the SAG a *rating* between 0 and 1.
+- When a deadline is missed after taking an edge/job, the destination node gets a rating of 0. Furthermore, no
+children of that node will be visited.
+- When a node is a dead end, it also gets a rating of 0.
+- Any leaf nodes without deadline misses will get a rating of 1.
+- The rating of any node that is not covered by any of the 3 cases above will be the average of the rating of its children.
 
-**Note**: the current implementation of this strategy seems to work when there is exactly 1 failing edge,
-but the implementation contains some potential flaws when there are multiple. I can definitely fix this,
-but I should work on literature review first.
+I will demonstrate this concept on an example graph below:
+![The deadline misses and dead ends in the graph](docs/graph0.png)
+- The edges are labeled with the taken jobs.
+- The deadline misses are denoted by red crosses through the edge that leads to the miss.
+- The dead ends are denoted by red crosses after a node without outgoing edges.
+- The end of the successful paths is denoted by a green check after the leaf node.
+- The rating of each node is written inside the node.
+
+In the graph above, only the failed nodes and the leaf node have a rating. The rest of the ratings are determined by
+taking the average of the child ratings. They will be assigned by traversing the graph from end to start. Step 1:
+
+![Assigning the first parent ratings](docs/graph1.png)
+
+Step 2:
+
+![Assigning the second parent ratings](docs/graph2.png)
+
+Step 3:
+
+![Assigning the third parent ratings](docs/graph3.png)
+
+Step 4 and 5:
+
+![Assigning the rest of the ratings](docs/graph4.png)
+
+Once all ratings have been assigned, the strategy needs to decide which edges should be deleted. The rating graph made
+above should guide the decisions, but there is not always a hard rule that tells which edges are best to delete.
+For instance, there are multiple ways to cut the upper part of the graph above:
+- We could cut J0 -> J2 -> J4 and J0 -> J1 -> J2
+- We could cut J0 -> J2 and J0 -> J1 -> J2
+- We could cut the J0 edge from the root node (deleting the whole upper part of the graph)
+
+The difference between these first 2 solutions is not very significant, but the third solution is quite influential.
+The advantage of cutting the first J0 edge, is that only 1 cut is needed. The drawback is that the number of correct paths
+is also decreased, which means that the graph becomes less robust. This can be problematic since deleting an edge may
+'accidentally' also delete other edges. For instance, if an edge is deleted by adding a precedence constraint, that extra
+precedence constraint could also delete edges elsewhere in the graph. If the number of correct paths is small, these are
+more likely to cause dead ends.
+
+In this example, I will assume that the following selection of cuts (red edges) is chosen:
+
+![The chosen cuts](docs/cuts1.png)
+
+After the cuts have been chosen, it's time to decide *how* we should delete these edges.
+From now on, I will refer to this as *performing the cut*.
+There are multiple ways to do this, for instance by:
+- Adding a precedence constraint. For instance, the J1 -> J2 cut could be performed by adding a precedence constraint that ensures
+J2 must happen after J3 or J4.
+- Adding a suspension. For instance, the J1 -> J2 cut could be performed by adding a suspension time between J1 and J2.
+- Increasing the best-case execution times or arrival times on the path (also their worst-case if needed). The reasoning is similar
+to that of the pessimistic strategy.
+- Splitting up (long) jobs (and using precedence constraints or priorities to ensure that the job segments execute in the right order).
+This could for instance avoid hazards where long low-priority jobs block higher priority jobs.
+
+Note that not all of these solutions can be applied in all cases, and that some may cause problems elsewhere in the graph.
+Furthermore, some solutions might accidentally perform multiple cuts. For instance, adding a precedence constraint between J4 and
+J2 would perform all 3 cuts!
+
+I will sort the cuts by their distance to the root node, and perform them 1-by-1.
+For each cut, several solutions will be attempted, until a good solution is found.
+To evaluate the effectiveness and side effects of potential solutions, I made 2 more agents.
+
+#### Agent_cut_check
+The `Agent_cut_check` tests whether a given cut has been performed. This agent is needed when we are trying to perform a cut,
+by using a solution that may or may not work. The agent will manipulate the exploration such that it will only take edges which
+could potentially lie on a path to the cut, as well as the siblings of the failed edge.
+For instance, to check whether the J1 -> J2 cut is performed, it would only explore this part of the graph:
+
+![The part that will be explored](docs/cut_check1.png)
+
+The agent will check whether the node after J1 -> J2 is reached. If so, the potential solution has failed.
+Furthermore, the agent will check whether no other (unexpected) deadline misses or dead ends are encountered.
+If any are encountered, the solution is also considered to be bad.
+
+When the cut check fails, a different solution should be tried.
+
+#### Agent_cut_test
+The `Agent_cut_test` tests whether a given cut has been performed **without causing additional deadline misses**.
+Note that there are 3 types of cuts to consider:
+- The cuts that have already been performed, which I will refer to as the *past cuts*
+- The cut for which a solution is being evaluated, which I will refer to as the *candidate cut*
+- The cuts that have not been performed yet, which I will refer to as the *future cuts*
+
+The *future* cuts are annoying, because the problem will obviously not become schedulable until they are performed.
+However, we need to evaluate the solutions to the *candidate* cut first before going after the *future* cuts.
+To handle this problem, the `Agent_cut_test` needs to know the list of *future* cuts,
+and it will manipulate the exploration such that the forbidden edges of these cuts will **not** be taken.
+Thus, when the *candidate* cut and all *past* cuts have been performed correctly,
+the manipulated exploration will conclude that the problem is schedulable.
+If the manipulated exploration concludes that the problem is **not** schedulable,
+something must be wrong with the attempted solution to the *candidate* cut (or it conflicts with the *past* cuts),
+hence another solution should be attempted.
+
+As a bonus, the `Agent_cut_test` also remembers which of the *future* cuts it actually blocked.
+When it did *not* block a *future* cut, it must accidentally have been performed as a side-effect of the
+attempted solution to the *candidate* cut.
+In such cases, the solution is extra good, since it performed multiple cuts!
 
 ## Performance and memory
-At this point, the code contains plenty of memory leaks and needless vector copies. Furthermore, it uses only
-vectors rather than clever data structures. Thus, I suspect that it will take ridiculously much time when
+At this point, the code contains plenty of memory leaks and needless copies. Thus, I suspect that it will take ridiculously much time when
 tested on large problems.
