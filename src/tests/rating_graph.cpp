@@ -3,7 +3,8 @@
 #undef NDEBUG
 
 #include "global/space.hpp"
-#include "reconfiguration/cut_trial.hpp"
+#include "reconfiguration/cut_check.hpp"
+#include "reconfiguration/cut_test.hpp"
 #include "reconfiguration/graph_cutter.hpp"
 #include "reconfiguration/rating_graph.hpp"
 #include "reconfiguration/sub_graph.hpp"
@@ -102,17 +103,33 @@ TEST_CASE("Rating graph + cutter") {
 
 	// No more other paths
 	for (int job = 0; job < 10; job++) CHECK(path->can_take_job(node2, job) == -1);
+	std::vector<Reconfiguration::Rating_graph_cut> no_cuts;
 
-	// was_cut_fixed should return 1 since we didn't fix the cut
-	CHECK(Reconfiguration::Agent_cut_check<dtime_t>::was_cut_fixed(problem, cuts[0]) == 1);
+	// was_cut_performed should return 1 since we didn't fix the cut
+	CHECK(Reconfiguration::Agent_cut_check<dtime_t>::was_cut_performed(problem, cuts[0]) == 1);
+	auto test_result_failed = Reconfiguration::Agent_cut_test<dtime_t>::perform(problem, no_cuts);
+	CHECK(test_result_failed.has_unexpected_failures);
+	CHECK(test_result_failed.fixed_cut_indices.empty());
 
-	// fix the cut, which should cause was_cut_fixed to return 0
+	// Sanity check: if the cut is avoided, the problem becomes schedulable
+	auto test_result_avoided = Reconfiguration::Agent_cut_test<dtime_t>::perform(problem, cuts);
+	CHECK(!test_result_avoided.has_unexpected_failures);
+	CHECK(test_result_avoided.fixed_cut_indices.empty());
+
+	// fix the cut, which should cause was_cut_performed to return 0
 	problem.prec.push_back(Precedence_constraint(problem.jobs[1].get_id(), problem.jobs[8].get_id(), Interval<dtime_t>(0, 0)));
 	validate_prec_cstrnts(problem.prec, problem.jobs);
-	CHECK(Reconfiguration::Agent_cut_check<dtime_t>::was_cut_fixed(problem, cuts[0]) == 0);
+	CHECK(Reconfiguration::Agent_cut_check<dtime_t>::was_cut_performed(problem, cuts[0]) == 0);
 
-	// Introduce an additional (unexpected) error, which should cause was_cut_fixed to return 2
+	// Introduce an additional (unexpected) error, which should cause was_cut_performed to return 2
+	auto old_job6 = problem.jobs[6];
 	problem.jobs[6] = Job<dtime_t>{6, Interval<dtime_t>(0,  0), Interval<dtime_t>(70, 80), 30, 30, 6, 6};
-	CHECK(Reconfiguration::Agent_cut_check<dtime_t>::was_cut_fixed(problem, cuts[0]) == 2);
+	CHECK(Reconfiguration::Agent_cut_check<dtime_t>::was_cut_performed(problem, cuts[0]) == 2);
+
+	// Sanity check: when the problem is schedulable, no 'remaining_cuts' are needed
+	problem.jobs[6] = old_job6;
+	auto test_result_passed = Reconfiguration::Agent_cut_test<dtime_t>::perform(problem, no_cuts);
+	CHECK(!test_result_passed.has_unexpected_failures);
+	CHECK(test_result_passed.fixed_cut_indices.empty());
 }
 #endif
