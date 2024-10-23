@@ -4,13 +4,13 @@
 #include "global/space.hpp"
 #include "pessimistic.hpp"
 #include "agent/failure_job_set.hpp"
-//#include "precedence.hpp"
+#include "graph_strategy.hpp"
 
 namespace NP::Reconfiguration {
 	struct Options {
         bool enabled{};
         bool skip_pessimism{};
-        bool skip_precedence{};
+        bool skip_graph{};
     };
 
 	template<class Time>
@@ -37,15 +37,14 @@ namespace NP::Reconfiguration {
 				}
 			}
 
-//			if (!options.skip_precedence) {
-//                PrecedenceReconfigurator<Time> precedence_reconfigurator(problem, original_failures, &test_options);
-//                auto precedence_solution = precedence_reconfigurator.find_local_minimal_solution();
-//                if (precedence_solution.size() > 0) {
-//                    std::cout << "The given problem is not schedulable, but you can make it schedulable by following these steps:\n";
-//                    for (const auto solution : precedence_solution) solution->print();
-//                    return 0;
-//                }
-//			}
+			if (!options.skip_graph) {
+				auto graph_solution = apply_graph_strategy(problem);
+				if (graph_solution.size() > 0) {
+					std::cout << "The given problem is not schedulable, but you can make it schedulable by following these steps:\n";
+					for (auto solution : graph_solution) solution->print();
+					return 0;
+				}
+			}
 
 			std::cout << "The given problem is not schedulable, and I couldn't find a solution to fix it.\n";
 			return 1;

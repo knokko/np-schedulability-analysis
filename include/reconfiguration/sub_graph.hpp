@@ -32,6 +32,18 @@ namespace NP::Reconfiguration {
 			return -1;
 		}
 
+		int length() {
+			int current_length = 0;
+			int current_node_index = 0;
+
+			while (!this->nodes[current_node_index].edges.empty()) {
+				current_node_index = this->nodes[current_node_index].edges[0].child_node_index;
+				current_length += 1;
+			}
+
+			return current_length;
+		}
+
 		bool is_leaf(int node) {
 			assert(node >= 0 && node < nodes.size());
 			return this->nodes[node].edges.empty();

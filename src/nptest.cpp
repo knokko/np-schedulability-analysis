@@ -316,8 +316,8 @@ int main(int argc, char** argv)
 		  .help("skip the pessimistic reconfiguration attempt, when --reconfigure is enabled")
 		  .action("store_const").set_const("1")
 		  .set_default("0");
-	parser.add_option("--reconfigure-skip-precedence").dest("reconfigure-skip-precedence")
-		  .help("skip the precedence reconfiguration attempt, when --reconfigure is enabled")
+	parser.add_option("--reconfigure-skip-graph").dest("reconfigure-skip-graph")
+		  .help("skip the graph-based reconfiguration attempt, when --reconfigure is enabled")
 		  .action("store_const").set_const("1")
 		  .set_default("0");
 
@@ -426,7 +426,7 @@ int main(int argc, char** argv)
 
 	reconfigure_options.enabled = options.get("reconfigure");
 	reconfigure_options.skip_pessimism = options.get("reconfigure-skip-pessimism");
-	reconfigure_options.skip_precedence = options.get("reconfigure-skip-precedence");
+	reconfigure_options.skip_graph = options.get("reconfigure-skip-graph");
 
 	use_supernodes = options.get("sn");
 

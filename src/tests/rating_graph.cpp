@@ -3,6 +3,7 @@
 #undef NDEBUG
 
 #include "global/space.hpp"
+#include "reconfiguration/attempt_generator.hpp"
 #include "reconfiguration/cut_check.hpp"
 #include "reconfiguration/cut_test.hpp"
 #include "reconfiguration/graph_cutter.hpp"
@@ -89,13 +90,14 @@ TEST_CASE("Rating graph + cutter") {
 
 	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
 	REQUIRE(cuts.size() == 1);
-	auto cut = &cuts[0];
-	REQUIRE(cut->forbidden_jobs.size() == 1);
-	CHECK(cut->forbidden_jobs[0] == 8);
-	REQUIRE(cut->allowed_jobs.size() == 1);
-	CHECK(cut->allowed_jobs[0] == 1);
+	auto cut = cuts[0];
+	CHECK(cut.previous_jobs->length() == 2);
+	REQUIRE(cut.forbidden_jobs.size() == 1);
+	CHECK(cut.forbidden_jobs[0] == 8);
+	REQUIRE(cut.allowed_jobs.size() == 1);
+	CHECK(cut.allowed_jobs[0] == 1);
 
-	auto &path = cut->previous_jobs;
+	auto &path = cut.previous_jobs;
 	int node1 = path->can_take_job(0, 0);
 	REQUIRE(node1 >= 0);
 	int node2 = path->can_take_job(node1, 6);
@@ -131,5 +133,12 @@ TEST_CASE("Rating graph + cutter") {
 	auto test_result_passed = Reconfiguration::Agent_cut_test<dtime_t>::perform(problem, no_cuts);
 	CHECK(!test_result_passed.has_unexpected_failures);
 	CHECK(test_result_passed.fixed_cut_indices.empty());
+
+	auto attempts = Reconfiguration::generate_precedence_attempts<dtime_t>(cut);
+	REQUIRE(attempts.size() == 1);
+	auto precedence_attempt = dynamic_cast<Reconfiguration::Precedence_attempt<dtime_t>*>(attempts[0].get());
+	CHECK(precedence_attempt->before == 1);
+	REQUIRE(precedence_attempt->after.size() == 1);
+	CHECK(precedence_attempt->after[0] == 8);
 }
 #endif

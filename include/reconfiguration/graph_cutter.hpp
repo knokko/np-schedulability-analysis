@@ -14,7 +14,7 @@ namespace NP::Reconfiguration {
 		std::vector<Job_index> allowed_jobs;
 	};
 
-	std::vector<Rating_graph_cut> cut_rating_graph(Rating_graph &graph) {
+	static std::vector<Rating_graph_cut> cut_rating_graph(Rating_graph &graph) {
 		struct Cut_builder {
 			int node_index;
 			std::vector<Job_index> forbidden_jobs;
