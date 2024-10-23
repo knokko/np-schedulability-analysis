@@ -309,6 +309,21 @@ When it did *not* block a *future* cut, it must accidentally have been performed
 attempted solution to the *candidate* cut.
 In such cases, the solution is extra good, since it performed multiple cuts!
 
+#### The solution
+The graph strategy will iterate over all the cuts, and test some solutions.
+Currently, whenever 1 working solution is found, the solution is stored, and the strategy continues with the next cut.
+I'm not sure whether this is smart: after all, if we try more solutions, we might find a better one that solves more
+than 1 cut. This is probably something to be researched.
+
+In the unfortunate case that none of the solutions for a cut work, the strategy will give up.
+Perhaps a solution could be found by reconsidering the selected solutions for the *past* cuts,
+but this could potentially take a lot of time.
+
+When the last cut is being processed, the list of *future* cuts will be empty. This means that the `Agent_cut_test` will
+allow the whole graph to be explored. Thus, if any of the tests of the last cut pass, the adapted problem is *schedulable*,
+and the list of stored solutions is sufficient to turn the original problem into a schedulable problem.
+This list of solutions will be presented to the user.
+
 ## Performance and memory
 At this point, the code contains plenty of memory leaks and needless copies. Thus, I suspect that it will take ridiculously much time when
 tested on large problems.
