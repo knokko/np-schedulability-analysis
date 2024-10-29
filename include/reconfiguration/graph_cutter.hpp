@@ -18,6 +18,12 @@ namespace NP::Reconfiguration {
 		struct Cut_builder {
 			int node_index;
 			std::vector<Job_index> forbidden_jobs;
+
+			void print() const {
+				std::cout << "Cut_builder(node = " << node_index << ", forbidden jobs:";
+				for (const auto job_index : forbidden_jobs) std::cout << " " << job_index;
+				std::cout << ")\n";
+			}
 		};
 		std::vector<Cut_builder> cut_builders;
 
@@ -34,8 +40,8 @@ namespace NP::Reconfiguration {
 		std::vector<Node> branch;
 		branch.push_back(Node { .index=0 });
 
-		while (branch.size() > 0) {
-			int branch_index = branch.size() - 1;
+		while (!branch.empty()) {
+			size_t branch_index = branch.size() - 1;
 			int node_index = branch[branch_index].index;
 			int edge_index = branch[branch_index].next_edge_index;
 
@@ -88,12 +94,15 @@ namespace NP::Reconfiguration {
 			std::vector<int> nodes_to_visit;
 			nodes_to_visit.push_back(builder.node_index);
 
+			/**
+			 * Maps node indices from the original graph to node indices in the previous_jobs graph
+			 */
 			std::vector<int> sub_graph_mapping;
 			sub_graph_mapping.reserve(graph.nodes.size());
 			for (int counter = 0; counter < graph.nodes.size(); counter++) sub_graph_mapping.push_back(-1);
 			sub_graph_mapping[builder.node_index] = 0;
-
-			while (nodes_to_visit.size() > 0) {
+			
+			while (!nodes_to_visit.empty()) {
 				int current_node = nodes_to_visit[nodes_to_visit.size() - 1];
 				nodes_to_visit.pop_back();
 

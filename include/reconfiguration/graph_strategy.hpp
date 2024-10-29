@@ -11,7 +11,7 @@
 
 namespace NP::Reconfiguration {
 
-	bool compare_cut_backward(Rating_graph_cut cut1, Rating_graph_cut cut2) {
+	static bool compare_cut_backward(const Rating_graph_cut& cut1, const Rating_graph_cut& cut2) {
 		return cut1.previous_jobs->length() > cut2.previous_jobs->length();
 	}
 
@@ -30,7 +30,7 @@ namespace NP::Reconfiguration {
 
 			auto attempts = generate_precedence_attempts<Time>(candidate_cut);
 
-			int old_solutions = selected_solutions.size();
+			size_t old_solutions = selected_solutions.size();
 			for (const auto &attempt : attempts) {
 				attempt->attempt(problem);
 				if (Agent_cut_check<Time>::was_cut_performed(problem, candidate_cut) == 0) {
