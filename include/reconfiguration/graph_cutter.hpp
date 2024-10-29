@@ -63,7 +63,7 @@ namespace NP::Reconfiguration {
 			auto destination = graph.nodes[current_edge.destination_node_index];
 			if (destination.rating == 1.0f || current_edge.destination_node_index < node_index) continue; // TODO Check if edge is already cut by a similar node in previous iterations
 
-			if (destination.rating < 0.4f && destination.rating < branch[branch_index].largest_child_rating - 0.4f) { // TODO Experiment with thresholds
+			if (destination.rating < branch[branch_index].largest_child_rating) {
 				bool add_new = true;
 				for (auto &cut : cut_builders) {
 					if (cut.node_index == node_index) {
@@ -109,8 +109,9 @@ namespace NP::Reconfiguration {
 							);
 						} else {
 							destination_node = previous_jobs.add_edge_to_new_node(mapped_current_node, edge.taken_job);
+							assert(destination_node > 0);
 							sub_graph_mapping[edge.destination_node_index] = destination_node;
-							nodes_to_visit.push_back(destination_node);
+							nodes_to_visit.push_back(edge.destination_node_index);
 						}
 					}
 				}
