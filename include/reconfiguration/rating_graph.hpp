@@ -104,7 +104,7 @@ namespace NP::Reconfiguration {
 	};
 
 	struct Attachment_rating_node final: Attachment {
-		int index;
+		int index = 0;
 	};
 
 	template<class Time> class Agent_rating_graph : public Agent<Time> {
