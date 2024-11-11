@@ -102,6 +102,81 @@ namespace NP::Reconfiguration {
 				if (num_children > 1) node.rating /= num_children;
 			}
 		}
+
+		template<class Time> void generate_dot_file(
+				const char *file_path,
+				const Scheduling_problem<Time> &problem,
+				const std::vector<Rating_graph_cut> &cuts
+		) {
+			FILE *file = fopen(file_path, "w");
+			if (!file) {
+				std::cout << "Failed to write to file " << file_path << std::endl;
+				return;
+			}
+
+			std::vector<std::vector<int>> subgraph_node_mapping;
+			subgraph_node_mapping.reserve(cuts.size());
+			for (int cut_index = 0; cut_index < cuts.size(); cut_index++) {
+				subgraph_node_mapping.emplace_back();
+				auto &last = subgraph_node_mapping[subgraph_node_mapping.size() - 1];
+				last.reserve(nodes.size());
+				last.push_back(0);
+				for (int node_index = 1; node_index < nodes.size(); node_index++) last.push_back(-2);
+			}
+
+			std::vector<int> should_visit_nodes;
+			should_visit_nodes.push_back(2);
+			for (int counter = 1; counter < nodes.size(); counter++) should_visit_nodes.push_back(0);
+
+			fprintf(file, "strict digraph Rating {\n");
+
+			for (int index = 0; index < nodes.size(); index++) {
+				if (should_visit_nodes[index] == 0) continue;
+				fprintf(file, "\tnode%u [label=%.2f", index, nodes[index].rating);
+				if (nodes[index].rating == 0.0f) fprintf(file, ", color=red");
+				if (nodes[index].rating == 1.0f) fprintf(file, ", color=green");
+				fprintf(file, "];\n");
+				if (should_visit_nodes[index] == 1) continue;
+				for (const auto &edge : nodes[index].edges) {
+					if (edge.destination_node_index < index) continue;
+					should_visit_nodes[edge.destination_node_index] = nodes[edge.destination_node_index].rating == 1.0f ? 1 : 2;
+					const auto job = problem.jobs[edge.taken_job].get_id();
+					fprintf(
+							file, "\tnode%u -> node%u [label=\"T%uJ%u (%zu)\"",
+							index, edge.destination_node_index, job.task, job.job, edge.taken_job
+					);
+
+					for (int cut_index = 0; cut_index < cuts.size(); cut_index++) {
+						int mapped_source_node = subgraph_node_mapping[cut_index][index];
+						if (mapped_source_node < 0) continue;
+						int mapped_destination_node = cuts[cut_index].previous_jobs->can_take_job(
+								mapped_source_node, edge.taken_job
+						);
+						subgraph_node_mapping[cut_index][edge.destination_node_index] = mapped_destination_node;
+						if (!cuts[cut_index].previous_jobs->is_leaf(mapped_source_node)) continue;
+
+						bool is_forbidden = false;
+						for (const auto forbidden_job : cuts[cut_index].forbidden_jobs) {
+							if (edge.taken_job == forbidden_job) {
+								is_forbidden = true;
+								break;
+							}
+						}
+
+						if (is_forbidden) {
+							fprintf(file, ", color=red");
+							break;
+						}
+					}
+
+					fprintf(file, "];\n");
+				}
+			}
+
+			fprintf(file, "}\n");
+
+			fclose(file);
+		}
 	};
 
 	struct Attachment_rating_node final: Attachment {
