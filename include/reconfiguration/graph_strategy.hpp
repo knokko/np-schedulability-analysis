@@ -18,10 +18,11 @@ namespace NP::Reconfiguration {
 	template<class Time> std::vector<Solution*> apply_graph_strategy(Scheduling_problem<Time> &problem) {
 		Rating_graph rating_graph;
 		Agent_rating_graph<Time>::generate(problem, rating_graph);
-		auto cuts = cut_rating_graph(rating_graph);
-		std::vector<Solution*> selected_solutions;
 
+		auto cuts = cut_rating_graph(rating_graph);
 		std::sort(cuts.begin(), cuts.end(), compare_cut_backward);
+
+		std::vector<Solution*> selected_solutions;
 
 		while (!cuts.empty()) {
 			auto candidate_cut = cuts[cuts.size() - 1];

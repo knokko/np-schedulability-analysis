@@ -7,7 +7,7 @@
 
 namespace NP::Reconfiguration {
 	struct Cut_test_result {
-		bool has_unexpected_failures;
+		bool has_unexpected_failures = false;
 		std::vector<size_t> fixed_cut_indices;
 	};
 

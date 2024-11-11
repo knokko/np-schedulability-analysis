@@ -5,9 +5,13 @@
 #include "attachment.hpp"
 #include "graph_cutter.hpp"
 
+#define CUT_CHECK_NODE_INDEX_INVALID (-1)
+#define CUT_CHECK_NODE_INDEX_RIGHT_AFTER_LEAF (-2)
+#define CUT_CHECK_NODE_INDEX_CONTINUED_AFTER_LEAF (-4)
+
 namespace NP::Reconfiguration {
 	struct Attachment_cut_check final: Attachment {
-		int node_index;
+		int node_index = 0;
 	};
 	template<class Time> class Agent_cut_check : public Agent<Time> {
 		Rating_graph_cut cut;
@@ -39,13 +43,13 @@ namespace NP::Reconfiguration {
 			if (did_take_cut_edge) return nullptr;
 			const auto parent_attachment = dynamic_cast<Attachment_cut_check*>(parent_node.attachment);
 			assert(parent_attachment);
-			assert(parent_attachment->node_index >= -2);
-			assert(parent_attachment->node_index != -1);
+			assert(parent_attachment->node_index >= 0 || parent_attachment->node_index == CUT_CHECK_NODE_INDEX_RIGHT_AFTER_LEAF);
+			assert(parent_attachment->node_index != CUT_CHECK_NODE_INDEX_INVALID);
 
 			auto new_attachment = new Attachment_cut_check();
 
-			if (parent_attachment->node_index == -2) {
-				new_attachment->node_index = -4;
+			if (parent_attachment->node_index == CUT_CHECK_NODE_INDEX_RIGHT_AFTER_LEAF) {
+				new_attachment->node_index = CUT_CHECK_NODE_INDEX_CONTINUED_AFTER_LEAF;
 			} else if (cut.previous_jobs->is_leaf(parent_attachment->node_index)) {
 				if (leaf_index > 0) assert(leaf_index == parent_attachment->node_index);
 				leaf_index = parent_attachment->node_index;
@@ -55,7 +59,7 @@ namespace NP::Reconfiguration {
 				assert(is_allowed || is_forbidden);
 				assert(!is_allowed || !is_forbidden);
 
-				if (is_allowed) new_attachment->node_index = -2;
+				if (is_allowed) new_attachment->node_index = CUT_CHECK_NODE_INDEX_RIGHT_AFTER_LEAF;
 				else did_take_cut_edge = true;
 			} else {
 				new_attachment->node_index = cut.previous_jobs->can_take_job(parent_attachment->node_index, next_job.get_job_index());
@@ -70,7 +74,7 @@ namespace NP::Reconfiguration {
 			const auto attachment = dynamic_cast<Attachment_cut_check*>(failed_node.attachment);
 			assert(attachment);
 
-			if (attachment->node_index == -4) return; // These nodes are out-of-scope
+			if (attachment->node_index == CUT_CHECK_NODE_INDEX_CONTINUED_AFTER_LEAF) return; // These nodes are out-of-scope
 			else has_unexpected_failure = true;
 		}
 
@@ -79,7 +83,9 @@ namespace NP::Reconfiguration {
 			const auto attachment = dynamic_cast<Attachment_cut_check*>(dead_node.attachment);
 			assert(attachment);
 
-			if (attachment->node_index >= 0 || attachment->node_index == -2) has_unexpected_failure = true;
+			if (attachment->node_index >= 0 || attachment->node_index == CUT_CHECK_NODE_INDEX_RIGHT_AFTER_LEAF) {
+				has_unexpected_failure = true;
+			}
 		}
 
 		bool is_allowed(const Global::Schedule_node<Time> &node, const Job<Time> &next_job) override {
@@ -87,9 +93,9 @@ namespace NP::Reconfiguration {
 			const auto attachment = dynamic_cast<Attachment_cut_check*>(node.attachment);
 			assert(attachment);
 
-			if (attachment->node_index == -4) return false;
-			if (attachment->node_index == -2 || cut.previous_jobs->is_leaf(attachment->node_index)) return true;
-			return cut.previous_jobs.get()->can_take_job(attachment->node_index, next_job.get_job_index()) > 0;
+			if (attachment->node_index == CUT_CHECK_NODE_INDEX_CONTINUED_AFTER_LEAF) return false;
+			if (attachment->node_index == CUT_CHECK_NODE_INDEX_RIGHT_AFTER_LEAF || cut.previous_jobs->is_leaf(attachment->node_index)) return true;
+			return cut.previous_jobs->can_take_job(attachment->node_index, next_job.get_job_index()) > 0;
 		}
 	};
 }
