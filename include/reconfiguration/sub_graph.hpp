@@ -19,7 +19,7 @@ namespace NP::Reconfiguration {
 		std::vector<Sub_graph_node> nodes;
 	public:
 		Sub_graph() {
-			nodes.push_back(Sub_graph_node {});
+			nodes.emplace_back();
 		}
 
 		int can_take_job(int start_node, Job_index job) {
@@ -52,7 +52,7 @@ namespace NP::Reconfiguration {
 		int add_edge_to_new_node(int start_node, Job_index taken_job) {
 			assert(start_node >= 0 && start_node < nodes.size());
 			int end_node = nodes.size();
-			nodes.push_back(Sub_graph_node {});
+			nodes.emplace_back();
 
 			nodes[start_node].edges.push_back(Sub_graph_edge {
 				.child_node_index = end_node,
@@ -73,7 +73,7 @@ namespace NP::Reconfiguration {
 		Sub_graph reversed() {
 			Sub_graph result;
 			result.nodes.reserve(this->nodes.size());
-			for (int counter = 1; counter < this->nodes.size(); counter++) result.nodes.push_back(Sub_graph_node {});
+			for (int counter = 1; counter < this->nodes.size(); counter++) result.nodes.emplace_back();
 
 			for (int own_node_index = 0; own_node_index < this->nodes.size(); own_node_index++) {
 				for (const auto &edge : this->nodes[own_node_index].edges) {

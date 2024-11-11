@@ -5,6 +5,7 @@
 
 #include "agent.hpp"
 #include "attachment.hpp"
+#include "rating_graph_cut.hpp"
 
 namespace NP::Reconfiguration {
 	struct Rating_edge {
@@ -153,7 +154,7 @@ namespace NP::Reconfiguration {
 			const auto attachment = dynamic_cast<Attachment_rating_node*>(failed_node.attachment);
 			assert(attachment);
 			rating_graph->set_missed_deadline(attachment->index);
-			std::cout << "missed deadline of job " << late_job.get_job_index() << " at index " << attachment->index << std::endl;
+			//std::cout << "missed deadline of job " << late_job.get_job_index() << " at index " << attachment->index << std::endl;
 		}
 
 		void finished_node(const Global::Schedule_node<Time> &node) override {

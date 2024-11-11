@@ -6,13 +6,9 @@
 #include "rating_graph.hpp"
 #include "index_collection.hpp"
 #include "sub_graph.hpp"
+#include "rating_graph_cut.hpp"
 
 namespace NP::Reconfiguration {
-	struct Rating_graph_cut {
-		std::shared_ptr<Sub_graph> previous_jobs;
-		std::vector<Job_index> forbidden_jobs;
-		std::vector<Job_index> allowed_jobs;
-	};
 
 	static std::vector<Rating_graph_cut> cut_rating_graph(Rating_graph &graph) {
 		struct Cut_builder {
