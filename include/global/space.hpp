@@ -665,7 +665,9 @@ namespace NP {
 			// Check wether a job is ready (not dspatched yet and all its predecessors are completed).
 			bool ready(const Node& n, const Job<Time>& j) const
 			{
-				return unfinished(n, j) && n.job_ready(predecessors_of(j));
+				if (unfinished(n, j) && n.job_ready(predecessors_of(j))) {
+					return !reconfiguration_agent || reconfiguration_agent->is_allowed(n, j);
+				} else return false;
 			}
 
 			bool all_jobs_scheduled(const Node& n) const
@@ -1348,7 +1350,7 @@ namespace NP {
 					if (j.earliest_arrival() > upbnd_t_wc)
 						break; // TODO Revert to break after testing
 
-					// Job could be not ready due to precedence constraints
+					// Job could be not ready due to precedence constraints, or due to the reconfiguration agent
 					if (!ready(n, j))
 						continue;
 
@@ -1361,9 +1363,6 @@ namespace NP {
 					// then j will never be the next job dispached by the scheduler
 					if (t_high_wos <= j.earliest_arrival())
 						continue;
-
-					// The reconfiguration agent can forbid transitions
-					if (reconfiguration_agent && !reconfiguration_agent->is_allowed(n, j)) continue;
 
 					found_one |= dispatch(n, j, upbnd_t_wc, t_high_wos);
 				}

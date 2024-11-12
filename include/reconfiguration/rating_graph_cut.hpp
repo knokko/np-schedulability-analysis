@@ -9,6 +9,8 @@ namespace NP::Reconfiguration {
 		std::shared_ptr<Sub_graph> previous_jobs;
 		std::vector<Job_index> forbidden_jobs;
 		std::vector<Job_index> allowed_jobs;
+		std::vector<Job_index> extra_forbidden_jobs;
+		std::vector<Job_index> extra_allowed_jobs;
 	};
 }
 

@@ -3,9 +3,8 @@
 
 #include "agent.hpp"
 #include "attachment.hpp"
-#include "graph_cutter.hpp"
+#include "rating_graph_cut.hpp"
 
-#define CUT_CHECK_NODE_INDEX_INVALID (-1)
 #define CUT_CHECK_NODE_INDEX_RIGHT_AFTER_LEAF (-2)
 #define CUT_CHECK_NODE_INDEX_CONTINUED_AFTER_LEAF (-4)
 
@@ -44,7 +43,6 @@ namespace NP::Reconfiguration {
 			const auto parent_attachment = dynamic_cast<Attachment_cut_check*>(parent_node.attachment);
 			assert(parent_attachment);
 			assert(parent_attachment->node_index >= 0 || parent_attachment->node_index == CUT_CHECK_NODE_INDEX_RIGHT_AFTER_LEAF);
-			assert(parent_attachment->node_index != CUT_CHECK_NODE_INDEX_INVALID);
 
 			auto new_attachment = new Attachment_cut_check();
 
@@ -54,11 +52,26 @@ namespace NP::Reconfiguration {
 				if (leaf_index > 0) assert(leaf_index == parent_attachment->node_index);
 				leaf_index = parent_attachment->node_index;
 
-				bool is_allowed = std::find(cut.allowed_jobs.begin(), cut.allowed_jobs.end(), next_job.get_job_index()) != cut.allowed_jobs.end();
-				bool is_forbidden = std::find(cut.forbidden_jobs.begin(), cut.forbidden_jobs.end(), next_job.get_job_index()) != cut.forbidden_jobs.end();
+				bool is_allowed = std::find(
+						cut.allowed_jobs.begin(), cut.allowed_jobs.end(), next_job.get_job_index()
+				) != cut.allowed_jobs.end();
+				is_allowed |= std::find(
+						cut.extra_allowed_jobs.begin(), cut.extra_allowed_jobs.end(), next_job.get_job_index()
+				) != cut.extra_allowed_jobs.end();
+				bool is_forbidden = std::find(
+						cut.forbidden_jobs.begin(), cut.forbidden_jobs.end(), next_job.get_job_index()
+				) != cut.forbidden_jobs.end();
+				is_forbidden |= std::find(
+						cut.extra_forbidden_jobs.begin(), cut.extra_forbidden_jobs.end(), next_job.get_job_index()
+				) != cut.extra_forbidden_jobs.end();
+				if (!is_allowed && !is_forbidden) {
+					std::cout << "job is " << next_job << " and node index is " << parent_attachment->node_index << " and #allowed jobs is " << this->cut.allowed_jobs.size() << std::endl;
+				}
 				assert(is_allowed || is_forbidden);
 				assert(!is_allowed || !is_forbidden);
 
+//				if (is_forbidden) did_take_cut_edge = true;
+//				else new_attachment->node_index = CUT_CHECK_NODE_INDEX_RIGHT_AFTER_LEAF;
 				if (is_allowed) new_attachment->node_index = CUT_CHECK_NODE_INDEX_RIGHT_AFTER_LEAF;
 				else did_take_cut_edge = true;
 			} else {

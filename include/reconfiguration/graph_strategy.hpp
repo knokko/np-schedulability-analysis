@@ -3,6 +3,7 @@
 
 #include "global/space.hpp"
 #include "attempt_generator.hpp"
+#include "cut_explore.hpp"
 #include "cut_check.hpp"
 #include "cut_test.hpp"
 #include "graph_cutter.hpp"
@@ -27,6 +28,8 @@ namespace NP::Reconfiguration {
 		while (!cuts.empty()) {
 			auto candidate_cut = cuts[cuts.size() - 1];
 			cuts.pop_back();
+
+			Agent_cut_explore<Time>::explore_fully(problem, &candidate_cut);
 			if (Agent_cut_check<Time>::was_cut_performed(problem, candidate_cut) == 0) continue;
 
 			auto attempts = generate_precedence_attempts<Time>(candidate_cut);
