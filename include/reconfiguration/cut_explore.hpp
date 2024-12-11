@@ -110,6 +110,7 @@ namespace NP::Reconfiguration {
 		}
 
 		void encountered_dead_end(const Global::Schedule_node<Time> &dead_node) override {
+			std::cout << "dead end\n";
 			const auto attachment = dynamic_cast<Attachment_cut_explore*>(dead_node.attachment);
 			assert(attachment);
 			if (attachment->node_index != CUT_EXPLORE_NODE_INDEX_CONTINUED && cut->previous_jobs->is_leaf(attachment->node_index)) return;
@@ -126,10 +127,13 @@ namespace NP::Reconfiguration {
 			if (attachment->node_index == CUT_EXPLORE_NODE_INDEX_CONTINUED) return true;
 
 			if (cut->previous_jobs->is_leaf(attachment->node_index)) {
-				return !contains(cut->allowed_jobs, next_job) &&
+				bool result = !contains(cut->allowed_jobs, next_job) &&
 						!contains(cut->forbidden_jobs, next_job) &&
 						!contains(cut->extra_allowed_jobs, next_job) &&
 						!contains(cut->extra_forbidden_jobs, next_job);
+				if (!result) std::cout << "Forbid job " << next_job << "\n";
+				else std::cout << "Allow " << next_job << "\n";
+				return result;
 			} else {
 				return cut->previous_jobs->can_take_job(
 						attachment->node_index, next_job.get_job_index()

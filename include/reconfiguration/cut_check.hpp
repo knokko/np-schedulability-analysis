@@ -79,10 +79,12 @@ namespace NP::Reconfiguration {
 				assert(new_attachment->node_index > 0);
 			}
 
+			//std::cout << "\nCreated new attachment with node index " << new_attachment->node_index << "\n\n";
 			return new_attachment;
 		}
 
 		void missed_deadline(const Global::Schedule_node<Time> &failed_node, const Job<Time> &late_job) override {
+			//std::cout << " missed deadline\n";
 			if (did_take_cut_edge) return;
 			const auto attachment = dynamic_cast<Attachment_cut_check*>(failed_node.attachment);
 			assert(attachment);
@@ -92,6 +94,7 @@ namespace NP::Reconfiguration {
 		}
 
 		void encountered_dead_end(const Global::Schedule_node<Time> &dead_node) override {
+			//std::cout << " dead end\n";
 			if (did_take_cut_edge) return;
 			const auto attachment = dynamic_cast<Attachment_cut_check*>(dead_node.attachment);
 			assert(attachment);
@@ -105,10 +108,16 @@ namespace NP::Reconfiguration {
 			if (did_take_cut_edge) return false;
 			const auto attachment = dynamic_cast<Attachment_cut_check*>(node.attachment);
 			assert(attachment);
+			//std::cout << "cut check: node index is " << attachment->node_index << " and job is " << next_job << std::endl;
 
-			if (attachment->node_index == CUT_CHECK_NODE_INDEX_CONTINUED_AFTER_LEAF) return false;
+			if (attachment->node_index == CUT_CHECK_NODE_INDEX_CONTINUED_AFTER_LEAF) {
+				//std::cout << "Rejected continued\n";
+				return false;
+			}
 			if (attachment->node_index == CUT_CHECK_NODE_INDEX_RIGHT_AFTER_LEAF || cut.previous_jobs->is_leaf(attachment->node_index)) return true;
-			return cut.previous_jobs->can_take_job(attachment->node_index, next_job.get_job_index()) > 0;
+			bool can_take = cut.previous_jobs->can_take_job(attachment->node_index, next_job.get_job_index()) > 0;
+			//std::cout << "Verdict for " << next_job << " is " << can_take << " at node " << attachment->node_index << std::endl;
+			return can_take;
 		}
 	};
 }

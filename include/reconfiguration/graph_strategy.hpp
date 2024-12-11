@@ -18,7 +18,9 @@ namespace NP::Reconfiguration {
 
 	template<class Time> std::vector<Solution*> apply_graph_strategy(Scheduling_problem<Time> &problem) {
 		Rating_graph rating_graph;
+		std::cout << "Generating rating graph...\n";
 		Agent_rating_graph<Time>::generate(problem, rating_graph);
+		std::cout << "Generated rating graph\n";
 
 		auto cuts = cut_rating_graph(rating_graph);
 		std::sort(cuts.begin(), cuts.end(), compare_cut_backward);
@@ -30,6 +32,7 @@ namespace NP::Reconfiguration {
 			cuts.pop_back();
 
 			Agent_cut_explore<Time>::explore_fully(problem, &candidate_cut);
+			std::cout << "Finished exploration\n";
 			if (Agent_cut_check<Time>::was_cut_performed(problem, candidate_cut) == 0) continue;
 
 			auto attempts = generate_precedence_attempts<Time>(candidate_cut);

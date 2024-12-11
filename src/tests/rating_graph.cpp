@@ -39,10 +39,14 @@ TEST_CASE("Rating graph + cutter") {
 			Job<dtime_t>{8, Interval<dtime_t>(0,  0), Interval<dtime_t>(3, 13), 60, 60, 8, 8}
 	};
 
+	REQUIRE(std::numeric_limits<dtime_t>::max() > 0);
+
 	auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
 
 	Reconfiguration::Rating_graph rating_graph;
 	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
+
+	rating_graph.generate_dot_file("weird.dot", problem, std::vector<Reconfiguration::Rating_graph_cut>());
 
 	REQUIRE(rating_graph.nodes.size() == 11);
 
@@ -107,15 +111,19 @@ TEST_CASE("Rating graph + cutter") {
 	for (int job = 0; job < 10; job++) CHECK(path->can_take_job(node2, job) == -1);
 	std::vector<Reconfiguration::Rating_graph_cut> no_cuts;
 
+	rating_graph.generate_dot_file("weird2.dot", problem, cuts);
+
 	// was_cut_performed should return 1 since we didn't fix the cut
-	CHECK(Reconfiguration::Agent_cut_check<dtime_t>::was_cut_performed(problem, cuts[0]) == 1);
+
+	REQUIRE(Reconfiguration::Agent_cut_check<dtime_t>::was_cut_performed(problem, cuts[0]) == 1);
 	auto test_result_failed = Reconfiguration::Agent_cut_test<dtime_t>::perform(problem, no_cuts);
 	CHECK(test_result_failed.has_unexpected_failures);
 	CHECK(test_result_failed.fixed_cut_indices.empty());
 
 	// Sanity check: if the cut is avoided, the problem becomes schedulable
+	std::cout << "\n\n\n\n\n";
 	auto test_result_avoided = Reconfiguration::Agent_cut_test<dtime_t>::perform(problem, cuts);
-	CHECK(!test_result_avoided.has_unexpected_failures);
+	REQUIRE(!test_result_avoided.has_unexpected_failures);
 	CHECK(test_result_avoided.fixed_cut_indices.empty());
 
 	// fix the cut, which should cause was_cut_performed to return 0

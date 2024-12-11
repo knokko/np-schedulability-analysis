@@ -90,7 +90,7 @@ namespace NP::Reconfiguration {
 
 				for (auto forbidden_job : cut.forbidden_jobs) {
 					if (forbidden_job == next_job.get_job_index()) {
-						did_intervene[index] = true;
+						did_intervene[index] = true; // TODO Oh boy, this is unreliable since this method can be called for different reasons
 						return false;
 					}
 				}

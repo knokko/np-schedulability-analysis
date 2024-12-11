@@ -77,6 +77,7 @@ namespace NP::Reconfiguration {
 
 		bool will_miss_deadline(int parent_index, Job_index candidate_job) const {
 			assert(parent_index >= 0 && parent_index < nodes.size());
+			//std::cout << "parent rating is " << nodes[parent_index].rating << " and parent index is " << parent_index << std::endl;
 			if (nodes[parent_index].rating == -1.0f) return true;
 			for (const auto &edge : nodes[parent_index].edges) {
 				if (edge.taken_job == candidate_job && nodes[edge.destination_node_index].rating == -1.0f) return true;
@@ -242,7 +243,9 @@ namespace NP::Reconfiguration {
 			const auto attachment = dynamic_cast<Attachment_rating_node*>(node.attachment);
 			assert(attachment);
 
-			return !rating_graph->will_miss_deadline(attachment->index, next_job.get_job_index());
+			bool result = !rating_graph->will_miss_deadline(attachment->index, next_job.get_job_index());
+			//std::cout << "allowed? " << result << std::endl;
+			return result;
 		}
 
 		bool allow_merge(
