@@ -43,6 +43,7 @@ namespace NP::Reconfiguration {
 			nodes[parent_index].edges.push_back(Rating_edge { .destination_node_index=child_index, .taken_job=taken_job });
 			nodes.push_back(Rating_node { });
 			nodes[child_index].edges.push_back(Rating_edge { .destination_node_index=parent_index, .taken_job=taken_job });
+			std::cout << "add_node(" << parent_index << ", " << taken_job << ") -> " << child_index << std::endl;
 			return child_index;
 		}
 
@@ -59,6 +60,7 @@ namespace NP::Reconfiguration {
 			assert(node_index >= 0);
 			assert(node_index < nodes.size());
 			nodes[node_index].rating = -1.0f;
+			std::cout << "set_missed_deadline " << node_index << std::endl;
 		}
 
 		void set_successful(int node_index) {

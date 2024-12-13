@@ -7,6 +7,7 @@
 #include <map>
 #include <unordered_map>
 #include <vector>
+#include <limits>
 
 #include <cassert>
 #include <iostream>
@@ -29,6 +30,7 @@
 #define NOSUSP 0
 #define GENERAL_SUSP 1
 #define PATHWISE_SUSP 2
+#undef NDEBUG
 
 namespace NP {
 
@@ -367,10 +369,11 @@ namespace NP {
 				}
 
 				for (const Job<Time>& j : jobs) {
-					if (_predecessors_suspensions[j.get_job_index()].size() > 0) {
+					if (_predecessors_suspensions[j.get_job_index()].size() > 0 || true) { // TODO Get rid of this || true
 						_successor_jobs_by_latest_arrival.insert({ j.latest_arrival(), &j });
 					}
 					else if (j.get_min_parallelism() == 1) {
+						// TODO Main suspect
 						_sequential_source_jobs_by_latest_arrival.insert({ j.latest_arrival(), &j });
 					}
 					else {
@@ -490,7 +493,7 @@ namespace NP {
 								num_states++;
 
 								// update response times
-								//std::cout << "frange is " << frange << std::endl;
+								std::cout << "frange is " << frange << std::endl;
 								update_finish_times(new_n, j, frange);
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 								edges.emplace_back(&j, &new_n, &next, frange, pmin);
@@ -525,6 +528,7 @@ namespace NP {
 				Reconfiguration::Attachment *attachment = nullptr;
 				if (reconfiguration_agent) attachment = reconfiguration_agent->create_initial_node_attachment();
 
+				std::cout << "initial next_certain_seq_release is " << next_certain_seq_release << std::endl;
 				Node& n = new_node(num_cores, jobs_by_earliest_arrival.begin()->first, next_certain_release, next_certain_seq_release, attachment);
 				State& s = new_state(num_cores, next_certain_gang_release);
 				n.add_state(&s);
@@ -867,6 +871,7 @@ namespace NP {
 				// a higer priority successor job cannot be ready before 
 				// a job of any priority is released
 				Time t_earliest = n.earliest_job_release();
+				std::cout << "t_earliest is " << t_earliest << " and ready_min is " << ready_min << " and when is " << when << std::endl;
 				for (auto it = successor_jobs_by_latest_arrival.lower_bound(t_earliest);
 					it != successor_jobs_by_latest_arrival.end(); it++)
 				{
@@ -1146,6 +1151,20 @@ namespace NP {
 				return next_node;
 			}
 
+			Time saturating_add(Time a, Time b) {
+				if (b < 0) throw "b must be positive in saturating_add";
+				if (a > std::numeric_limits<Time>::max() - b) return std::numeric_limits<Time>::max();
+				return a + b;
+			}
+
+			Time safe_add(Time a, Time b) {
+				std::cout << "safe_add(" << a << ", " << b << ") " << std::endl;
+				if (b < 0) throw "nope";
+				if (a > std::numeric_limits<Time>::max() - b) throw "overflow";
+
+				return a + b;
+			}
+
 			bool dispatch(const Node& n, const Job<Time>& j, Time t_wc_wos, Time t_high_wos)
 			{
 				// All states in node 'n' for which the job 'j' is eligible will 
@@ -1167,12 +1186,16 @@ namespace NP {
 					for (unsigned int p = j.get_max_parallelism(); p >= j.get_min_parallelism(); p--)
 					{
 						// Calculate t_wc and t_high
-						Time t_wc = std::max(s->core_availability(p).max(), next_certain_job_ready_time(n, *s));
+						Time next_cjr = next_certain_job_ready_time(n, *s);
+						Time next_sca = s->core_availability(p).max();
+						Time t_wc1 = std::max(s->core_availability(p).max(), next_certain_job_ready_time(n, *s));
+						Time t_wc2 = s->core_availability(p).max(); // TODO Optionally use next_certain_job_ready_time
 						//std::cout << "t_wc = " << t_wc << " = max(" << s->core_availability(p).max() << ", " << next_certain_job_ready_time(n, *s) << ")\n";
 
-						Time t_high_succ = next_certain_higher_priority_successor_job_ready_time(n, *s, j, p, increment(t_wc));
-						Time t_high_gang = next_certain_higher_priority_gang_source_job_ready_time(n, *s, j, p, increment(t_wc));
+						Time t_high_succ = next_certain_higher_priority_successor_job_ready_time(n, *s, j, p, saturating_add(t_wc1, 1));
+						Time t_high_gang = next_certain_higher_priority_gang_source_job_ready_time(n, *s, j, p, saturating_add(t_wc1, 1));
 						Time t_high = std::min(t_high_wos, std::min(t_high_gang, t_high_succ));
+						std::cout << "t_high is " << t_high << " because wos is " << t_high_wos << " and gang is " << t_high_gang << " and succ is " << t_high_succ << std::endl;
 
 						// If j can execute on ncores+k cores, then 
 						// the scheduler will start j on ncores only if 
@@ -1182,19 +1205,20 @@ namespace NP {
 							t_avail = s->core_availability(j.get_next_parallelism(p)).max();
 
 						DM("=== t_high = " << t_high << ", t_wc = " << t_wc << std::endl);
-						auto _st = start_times(*s, j, t_wc, t_high, t_avail, p);
+						auto _st = start_times(*s, j, t_wc2, t_high, t_avail, p);
 						//std::cout << "_st = " << _st.second << " = start_times(" << *s << "," << j << ", " << t_wc << ", " << t_high << "," << t_avail << "," << p << ")\n";
-						if (_st.first > t_wc || _st.first >= t_high || _st.first >= t_avail) {
-							//std::cout << "nope1\n";
+						if (_st.first > t_wc1 || _st.first >= t_high || _st.first >= t_avail) {
+							std::cout << "nope1: earliest start time is " << _st.first << " and t_wc1 is " << t_wc1 << " and t_high is " << t_high << " and t_avail is " << t_avail << std::endl;
 							continue; // nope, not next job that can be dispatched in state s, try the next state.
 						}
+						assert(_st.first >= 0 && _st.second >= 0);
 
 						//calculate the job finish time interval
 						Interval<Time> ftimes;
 						auto exec_time = j.get_cost(p);
-						Time eft = _st.first + exec_time.min();
-						Time lft = _st.second + exec_time.max();
-						//std::cout << "left (" << lft << ") = " << _st.second << " + " << exec_time.max() << std::endl;
+						Time eft = safe_add(_st.first, exec_time.min());
+						Time lft = saturating_add(_st.second, exec_time.max());
+						//std::cout << "lft (" << lft << ") = " << _st.second << " + " << exec_time.max() << std::endl;
 
 						// check for possible abort actions
 						auto j_idx = j.get_job_index();
@@ -1335,11 +1359,6 @@ namespace NP {
 				return dispatched_one;
 			}
 
-			Time increment(Time x) {
-				if (x == Time_model::constants<Time>::infinity()) return x;
-				return x + 1;
-			}
-
 			void explore(const Node& n)
 			{
 				bool found_one = false;
@@ -1355,6 +1374,7 @@ namespace NP {
 				// latest time by which a work-conserving scheduler
 				// certainly schedules some job
 				auto upbnd_t_wc = std::max(avail_max, nxt_ready_job);
+				//std::cout << "utwc is " << upbnd_t_wc << " because avail_max is " << avail_max << " and nxt is " << nxt_ready_job << std::endl;
 
 				DM(n << std::endl);
 				DM("t_min: " << t_min << std::endl
@@ -1371,7 +1391,7 @@ namespace NP {
 					//std::cout << "\n\nStart consider " << j << " with node " << &n << std::endl;
 					DM(j << " (" << index_of(j) << ")" << std::endl);
 					// stop looking once we've left the window of interest
-					std::cout << "bound " << j.get_job_index() << std::endl;
+					//std::cout << "bound " << j.get_job_index() << std::endl;
 					if (j.earliest_arrival() > upbnd_t_wc)
 						break; // TODO Revert to break after testing
 
@@ -1385,14 +1405,15 @@ namespace NP {
 					// be incomplete...
 					assert(unfinished(n, j));
 
-					Time t_high_wos = next_certain_higher_priority_seq_source_job_release(n, j, increment(upbnd_t_wc));
+					Time t_high_wos = next_certain_higher_priority_seq_source_job_release(n, j, saturating_add(upbnd_t_wc, 1));
 					// if there is a higher priority job that is certainly ready before job j is released at the earliest, 
 					// then j will never be the next job dispached by the scheduler
 					if (t_high_wos <= j.earliest_arrival())
 						continue;
 
-					found_one |= dispatch(n, j, upbnd_t_wc, t_high_wos);
-					//std::cout << "Dispatched " << j << "?\n\n\n";
+					bool did_dispatch = dispatch(n, j, upbnd_t_wc, t_high_wos);
+					found_one |= did_dispatch;
+					std::cout << "Dispatched " << j << "? " << did_dispatch << "\n\n";
 				}
 
 				// check for a dead end

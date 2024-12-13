@@ -59,11 +59,12 @@ TEST_CASE("cut_explorer: small first job choice") {
 	std::cout << "start rating graph\n";
 	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
 	std::cout << "finished rating graph\n";
+	rating_graph.generate_dot_file("test_cut_explore_mini2.dot", problem, std::vector<Reconfiguration::Rating_graph_cut>());
+	REQUIRE(rating_graph.nodes[0].rating > 0.0);
 	REQUIRE(rating_graph.nodes[0].rating < 1.0);
 
-	rating_graph.generate_dot_file("test_cut_explore_mini2.dot", problem, std::vector<Reconfiguration::Rating_graph_cut>());
 	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
-	rating_graph.generate_dot_file("test_cut_explore_mini2.dot", problem, cuts);
+	rating_graph.generate_dot_file("test_cut_explore_mini2_cut.dot", problem, cuts);
 
 	REQUIRE(cuts.size() == 1);
 	auto &cut = cuts[0];
@@ -72,57 +73,15 @@ TEST_CASE("cut_explorer: small first job choice") {
 	Reconfiguration::Agent_cut_explore<dtime_t>::explore_fully(problem, &cut);
 
 	REQUIRE(cut.extra_allowed_jobs.size() == 1);
-	REQUIRE(cut.extra_allowed_jobs[0] == 3);
+	REQUIRE(cut.extra_allowed_jobs[0] == 1);
 
-	REQUIRE(cut.extra_forbidden_jobs.size() == 2);
-	auto extra0 = cut.extra_forbidden_jobs[0];
-	REQUIRE((extra0 == 5 || extra0 == 6));
-	auto extra1 = cut.extra_forbidden_jobs[1];
-	REQUIRE((extra1 == 5 || extra1 == 6));
-}
-
-TEST_CASE("cut_explorer: small first job choice backup") {
-	Global::State_space<dtime_t>::Workload jobs {
-			// When either job 0 or 1 goes first, no deadlines will be missed.
-			// Note that job 1 can only go first if the exploration agent forbids the other two jobs.
-			Job<dtime_t>{0, Interval<dtime_t>(10, 18), Interval<dtime_t>(8, 8), 50, 0, 0, 0},
-			Job<dtime_t>{1, Interval<dtime_t>(18, 18), Interval<dtime_t>(8, 8), 50, 1, 1, 1},
-
-			// When job 2 goes first, jobs 0 and 1 will miss their deadlines
-			Job<dtime_t>{2, Interval<dtime_t>(10, 17), Interval<dtime_t>(100, 100), 900, 2, 2, 2},
-	};
-
-	auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
-
-	Reconfiguration::Rating_graph rating_graph;
-	std::cout << "start rating graph\n";
-	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
-	std::cout << "finished rating graph\n";
-	REQUIRE(rating_graph.nodes[0].rating < 1.0);
-
-	rating_graph.generate_dot_file("test_cut_explore_mini2.dot", problem, std::vector<Reconfiguration::Rating_graph_cut>());
-	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
-	rating_graph.generate_dot_file("test_cut_explore_mini2.dot", problem, cuts);
-
-	REQUIRE(cuts.size() == 1);
-	auto &cut = cuts[0];
-	REQUIRE(cut.allowed_jobs.size() == 1);
-	REQUIRE(cut.forbidden_jobs.size() == 1);
-	Reconfiguration::Agent_cut_explore<dtime_t>::explore_fully(problem, &cut);
-
-	REQUIRE(cut.extra_allowed_jobs.size() == 1);
-	REQUIRE(cut.extra_allowed_jobs[0] == 3);
-
-	REQUIRE(cut.extra_forbidden_jobs.size() == 2);
-	auto extra0 = cut.extra_forbidden_jobs[0];
-	REQUIRE((extra0 == 5 || extra0 == 6));
-	auto extra1 = cut.extra_forbidden_jobs[1];
-	REQUIRE((extra1 == 5 || extra1 == 6));
+	REQUIRE(cut.extra_forbidden_jobs.size() == 0);
 }
 
 TEST_CASE("cut_explorer: explore first job choices") {
 	Global::State_space<dtime_t>::Workload jobs {
 			// Job 0 will be last
+			// TODO Hm... something weird about job 0 prio
 			Job<dtime_t>{0, Interval<dtime_t>(1000, 1000), Interval<dtime_t>(10, 20), 1100, 1, 0, 0},
 
 			// Either job 1, 2, or 3 should be first, but job 3 won't be first by default

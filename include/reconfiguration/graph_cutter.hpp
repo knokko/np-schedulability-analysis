@@ -34,7 +34,15 @@ namespace NP::Reconfiguration {
 		};
 
 		std::vector<Node> branch;
-		branch.push_back(Node { .index=0 });
+
+		if (graph.nodes[0].rating > 0.0f) {
+			branch.push_back(Node { .index=0 });
+		} else {
+			std::cout << "root node rating is 0\n";
+			std::vector<Job_index> possible_jobs;
+			for (const auto &edge : graph.nodes[0].edges) possible_jobs.push_back(edge.taken_job);
+			cut_builders.push_back(Cut_builder { .node_index=0, .forbidden_jobs=possible_jobs });
+		}
 
 		while (!branch.empty()) {
 			size_t branch_index = branch.size() - 1;
@@ -42,6 +50,7 @@ namespace NP::Reconfiguration {
 			int edge_index = branch[branch_index].next_edge_index;
 
 			auto node = graph.nodes[node_index];
+			//std::cout << "node " << node_index << " has rating " << node.rating << std::endl;
 
 			assert(node.rating > 0.0f);
 			if (node.rating == 1.0 || has_visited[node_index] || edge_index >= node.edges.size()) {
