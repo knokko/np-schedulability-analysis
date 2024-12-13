@@ -579,6 +579,7 @@ namespace NP {
 					delete& new_s; // if we could merge no need to keep track of the new state anymore
 				else
 				{
+					std::cout << "create state2\n";
 					n.add_state(&new_s); // else add the new state to the node
 					num_states++;
 				}
@@ -779,12 +780,14 @@ namespace NP {
 
 				// a higher priority source job cannot be released before 
 				// a source job of any priority is released
-				Time t_earliest = n.get_next_certain_source_job_release();
+				//Time t_earliest = n.get_next_certain_source_job_release();
+				Time t_earliest = 0; // TODO Use bound above when reconfiguration agent allows it
 
 				for (auto it = sequential_source_jobs_by_latest_arrival.lower_bound(t_earliest);
 					it != sequential_source_jobs_by_latest_arrival.end(); it++)
 				{
 					const Job<Time>& j = *(it->second);
+					std::cout << "consider higher job " << j.get_job_index() << " with latest arrival " << j.latest_arrival() << " and when " << when << std::endl;
 
 					// check if we can stop looking
 					if (when < j.latest_arrival())
@@ -799,7 +802,7 @@ namespace NP {
 						break;
 					}
 				}
-				//std::cout << "when is " << when << " and until is " << until << " and test is " << (when > 0) << std::endl;
+				std::cout << "when is " << when << " and until is " << until << " and test is " << (when > 0) << std::endl;
 				return when;
 			}
 
@@ -906,6 +909,7 @@ namespace NP {
 			{
 				//TODO: may have to account for the number of available cores in a state
 				Time t_ws = std::min(s.next_certain_gang_source_job_disptach(), s.next_certain_successor_jobs_disptach());
+				// TODO Hm... may need special treatment when reconfiguration agent intervenes
 				Time t_wos = n.get_next_certain_sequential_source_job_release();
 				//std::cout << "t_ws is " << t_ws << " and t_wos is " << t_wos << std::endl;
 				return std::min(t_wos, t_ws);
@@ -931,17 +935,19 @@ namespace NP {
 				auto rt = earliest_ready_time(s, j);
 				auto at = s.core_availability(ncores).min();
 				Time est = std::max(rt, at);
+				std::cout << "est is " << est << " is max(" << rt << "," << at << ")\n";
 
 				DM("rt: " << rt << std::endl
 					<< "at: " << at << std::endl);
 
 				Time lst = std::min(t_wc,
 					std::min(t_high, t_avail) - Time_model::constants<Time>::epsilon());
-				//std::cout << "lst = " << lst << " = min(" << t_wc << ", min(" << t_high << "," << t_avail << ") - eps)\n";
+				std::cout << "lst = " << lst << " = min(" << t_wc << ", min(" << t_high << "," << t_avail << ") - eps)\n";
 
 				DM("est: " << est << std::endl);
 				DM("lst: " << lst << std::endl);
 
+				std::cout << "est is " << est << " is max(" << rt << "," << at << ")\n";
 				return { est, lst };
 			}
 
@@ -1146,6 +1152,7 @@ namespace NP {
 					attachment);
 #endif
 
+				std::cout << "create state1\n";
 				next_node.add_state(&st);
 				num_states++;
 				return next_node;
@@ -1188,8 +1195,8 @@ namespace NP {
 						// Calculate t_wc and t_high
 						Time next_cjr = next_certain_job_ready_time(n, *s);
 						Time next_sca = s->core_availability(p).max();
-						Time t_wc1 = std::max(s->core_availability(p).max(), next_certain_job_ready_time(n, *s));
-						Time t_wc2 = s->core_availability(p).max(); // TODO Optionally use next_certain_job_ready_time
+						Time t_wc1 = std::max(next_sca, next_cjr);
+						Time t_wc2 = next_sca; // TODO Optionally use next_certain_job_ready_time
 						//std::cout << "t_wc = " << t_wc << " = max(" << s->core_availability(p).max() << ", " << next_certain_job_ready_time(n, *s) << ")\n";
 
 						Time t_high_succ = next_certain_higher_priority_successor_job_ready_time(n, *s, j, p, saturating_add(t_wc1, 1));
@@ -1205,8 +1212,8 @@ namespace NP {
 							t_avail = s->core_availability(j.get_next_parallelism(p)).max();
 
 						DM("=== t_high = " << t_high << ", t_wc = " << t_wc << std::endl);
-						auto _st = start_times(*s, j, t_wc2, t_high, t_avail, p);
-						//std::cout << "_st = " << _st.second << " = start_times(" << *s << "," << j << ", " << t_wc << ", " << t_high << "," << t_avail << "," << p << ")\n";
+						auto _st = start_times(*s, j, t_wc1, t_high, t_avail, p); // TODO Hm... issues when using t_wc2 instead of t_wc1
+						std::cout << "_st = (" << _st.first << "," << _st.second << ") = start_times(" << *s << "," << j << ", " << t_wc2 << ", " << t_high << "," << t_avail << "," << p << ")\n";
 						if (_st.first > t_wc1 || _st.first >= t_high || _st.first >= t_avail) {
 							std::cout << "nope1: earliest start time is " << _st.first << " and t_wc1 is " << t_wc1 << " and t_high is " << t_high << " and t_avail is " << t_avail << std::endl;
 							continue; // nope, not next job that can be dispatched in state s, try the next state.
@@ -1217,8 +1224,9 @@ namespace NP {
 						Interval<Time> ftimes;
 						auto exec_time = j.get_cost(p);
 						Time eft = safe_add(_st.first, exec_time.min());
+						std::cout << "eft (" << eft << ") = " << _st.first << " + " << exec_time.min() << std::endl;
 						Time lft = saturating_add(_st.second, exec_time.max());
-						//std::cout << "lft (" << lft << ") = " << _st.second << " + " << exec_time.max() << std::endl;
+						std::cout << "lft (" << lft << ") = " << _st.second << " + " << exec_time.max() << std::endl;
 
 						// check for possible abort actions
 						auto j_idx = j.get_job_index();
@@ -1242,16 +1250,18 @@ namespace NP {
 						}
 						else {
 							// compute range of possible finish times
+							if (lft < eft) throw "dafuq";
 							ftimes = Interval<Time>{ eft, lft };
-							//std::cout << "case3\n";
+							std::cout << "case3: eft is " << eft << " so ftimes is " << ftimes << std::endl;
 						}
 
 						// yep, job j is a feasible successor in state s
 						dispatched_one = true;
 
 						// update finish-time estimates
-						//std::cout << "ftimes is " << ftimes << " after dispatching " << j << std::endl;
+						std::cout << "ftimes is " << ftimes << " before dispatching " << j << std::endl;
 						update_finish_times(n, j, ftimes);
+						std::cout << "ftimes is " << ftimes << " after dispatching " << j << std::endl;
 
 						//std::cout << "\ndispatch?\n";
 						if (use_supernodes == false)
@@ -1369,12 +1379,23 @@ namespace NP {
 				auto t_min = n.earliest_job_release();
 				// latest time some unfinished job is certainly ready
 				auto nxt_ready_job = n.next_certain_job_ready_time();
+				// TODO Only run this for loop if needed
+				for (auto it = jobs_by_earliest_arrival.lower_bound(t_min);
+					 it != jobs_by_earliest_arrival.end();
+					 it++
+				) {
+					const Job<Time>& j = *it->second;
+					if (j.latest_arrival() < nxt_ready_job && ready(n, j)) {
+						nxt_ready_job = j.latest_arrival();
+					}
+				}
+
 				// latest time all cores are certainly available
 				auto avail_max = n.latest_core_availability();
 				// latest time by which a work-conserving scheduler
 				// certainly schedules some job
 				auto upbnd_t_wc = std::max(avail_max, nxt_ready_job);
-				//std::cout << "utwc is " << upbnd_t_wc << " because avail_max is " << avail_max << " and nxt is " << nxt_ready_job << std::endl;
+				std::cout << "utwc is " << upbnd_t_wc << " because avail_max is " << avail_max << " and nxt is " << nxt_ready_job << std::endl;
 
 				DM(n << std::endl);
 				DM("t_min: " << t_min << std::endl
@@ -1391,7 +1412,7 @@ namespace NP {
 					//std::cout << "\n\nStart consider " << j << " with node " << &n << std::endl;
 					DM(j << " (" << index_of(j) << ")" << std::endl);
 					// stop looking once we've left the window of interest
-					//std::cout << "bound " << j.get_job_index() << std::endl;
+					std::cout << "consider " << j.get_job_index() << " with earliest arrival " << j.earliest_arrival() << " and bound " << upbnd_t_wc << std::endl;
 					if (j.earliest_arrival() > upbnd_t_wc)
 						break; // TODO Revert to break after testing
 

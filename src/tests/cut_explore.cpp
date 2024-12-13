@@ -80,19 +80,15 @@ TEST_CASE("cut_explorer: small first job choice") {
 
 TEST_CASE("cut_explorer: explore first job choices") {
 	Global::State_space<dtime_t>::Workload jobs {
-			// Job 0 will be last
-			// TODO Hm... something weird about job 0 prio
-			Job<dtime_t>{0, Interval<dtime_t>(1000, 1000), Interval<dtime_t>(10, 20), 1100, 1, 0, 0},
-
 			// Either job 1, 2, or 3 should be first, but job 3 won't be first by default
-			Job<dtime_t>{1, Interval<dtime_t>(10, 18), Interval<dtime_t>(8, 8), 50, 2, 1, 1},
-			Job<dtime_t>{2, Interval<dtime_t>(10, 17), Interval<dtime_t>(8, 8), 50, 3, 2, 2},
-			Job<dtime_t>{3, Interval<dtime_t>(18, 18), Interval<dtime_t>(8, 8), 50, 4, 3, 3},
+			Job<dtime_t>{1, Interval<dtime_t>(10, 18), Interval<dtime_t>(8, 8), 50, 2, 0, 1},
+			Job<dtime_t>{2, Interval<dtime_t>(10, 17), Interval<dtime_t>(8, 8), 50, 3, 1, 2},
+			Job<dtime_t>{3, Interval<dtime_t>(18, 18), Interval<dtime_t>(8, 8), 50, 4, 2, 3},
 
 			// When either job 4, 5, or 6 is executed as first job, jobs 1 to 3 will miss their deadlines
-			Job<dtime_t>{4, Interval<dtime_t>(10, 17), Interval<dtime_t>(100, 100), 900, 5, 4, 4},
-//			Job<dtime_t>{5, Interval<dtime_t>(17, 17), Interval<dtime_t>(100, 100), 900, 6, 5, 5},
-//			Job<dtime_t>{6, Interval<dtime_t>(17, 17), Interval<dtime_t>(100, 100), 900, 7, 6, 6},
+			Job<dtime_t>{4, Interval<dtime_t>(10, 17), Interval<dtime_t>(100, 100), 900, 5, 3, 4},
+			Job<dtime_t>{5, Interval<dtime_t>(17, 17), Interval<dtime_t>(100, 100), 900, 6, 4, 5},
+			Job<dtime_t>{6, Interval<dtime_t>(17, 17), Interval<dtime_t>(100, 100), 900, 7, 5, 6},
 	};
 
 	auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
@@ -111,13 +107,13 @@ TEST_CASE("cut_explorer: explore first job choices") {
 	Reconfiguration::Agent_cut_explore<dtime_t>::explore_fully(problem, &cut);
 
 	REQUIRE(cut.extra_allowed_jobs.size() == 1);
-	REQUIRE(cut.extra_allowed_jobs[0] == 3);
+	REQUIRE(cut.extra_allowed_jobs[0] == 2);
 
 	REQUIRE(cut.extra_forbidden_jobs.size() == 2);
 	auto extra0 = cut.extra_forbidden_jobs[0];
-	REQUIRE((extra0 == 5 || extra0 == 6));
+	REQUIRE((extra0 == 4 || extra0 == 5));
 	auto extra1 = cut.extra_forbidden_jobs[1];
-	REQUIRE((extra1 == 5 || extra1 == 6));
+	REQUIRE((extra1 == 4 || extra1 == 5));
 }
 
 TEST_CASE("cut_explorer: explore second job choices") {

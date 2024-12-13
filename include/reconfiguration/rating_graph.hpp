@@ -65,6 +65,8 @@ namespace NP::Reconfiguration {
 
 		void set_successful(int node_index) {
 			assert(node_index >= 0 && node_index < nodes.size());
+			std::cout << "set_successful " << node_index << std::endl;
+			if (nodes[node_index].rating == -1.0f) return;
 
 			bool has_children = false;
 			for (const auto &edge : nodes[node_index].edges) {
@@ -90,6 +92,7 @@ namespace NP::Reconfiguration {
 		void compute_ratings() {
 			for (int index = nodes.size() - 1; index >= 0; index--) {
 				auto &node = nodes[index];
+				std::cout << "compute ratings: original rating of node " << index << " is " << node.rating << std::endl;
 				if (node.rating == -1.0f) {
 					node.rating = 0.0f;
 					continue;
