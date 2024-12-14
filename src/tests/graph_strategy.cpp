@@ -58,7 +58,6 @@ TEST_CASE("Graph strategy sanity 2") {
 	CHECK(solution->to == jobs[2].get_id());
 
 	REQUIRE(Reconfiguration::verify_solution(&problem, solutions));
-	// TODO Use and test verify_solution more often
 }
 
 TEST_CASE("Graph strategy cut-explore first job (2)") {

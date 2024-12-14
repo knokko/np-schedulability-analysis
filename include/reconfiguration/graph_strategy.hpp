@@ -33,7 +33,7 @@ namespace NP::Reconfiguration {
 			auto candidate_cut = cuts[cuts.size() - 1];
 			cuts.pop_back();
 
-			Agent_cut_explore<Time>::explore_fully(problem, &candidate_cut);
+			Agent_cut_explore<Time>::explore_blocking_forbidden_jobs(problem, &candidate_cut);
 			std::cout << "Finished exploration: extra allowed is " << candidate_cut.extra_allowed_jobs.size() << " and extra forbidden is " << candidate_cut.extra_forbidden_jobs.size() << "\n\n\n\n\n\n";
 			if (Agent_cut_check<Time>::was_cut_performed(problem, candidate_cut) == 0) continue;
 
