@@ -790,7 +790,7 @@ namespace NP {
 					it != sequential_source_jobs_by_latest_arrival.end(); it++)
 				{
 					const Job<Time>& j = *(it->second);
-					std::cout << "consider higher job " << j.get_job_index() << " with latest arrival " << j.latest_arrival() << " and when " << when << std::endl;
+					//std::cout << "consider higher job " << j.get_job_index() << " with latest arrival " << j.latest_arrival() << " and when " << when << std::endl;
 
 					// check if we can stop looking
 					if (when < j.latest_arrival())
@@ -1208,7 +1208,7 @@ namespace NP {
 						Time t_high_succ = next_certain_higher_priority_successor_job_ready_time(n, *s, j, p, saturating_add(t_wc1, 1));
 						Time t_high_gang = next_certain_higher_priority_gang_source_job_ready_time(n, *s, j, p, saturating_add(t_wc1, 1));
 						Time t_high = std::min(t_high_wos, std::min(t_high_gang, t_high_succ));
-						std::cout << "t_high is " << t_high << " because wos is " << t_high_wos << " and gang is " << t_high_gang << " and succ is " << t_high_succ << std::endl;
+						//std::cout << "t_high is " << t_high << " because wos is " << t_high_wos << " and gang is " << t_high_gang << " and succ is " << t_high_succ << std::endl;
 
 						// If j can execute on ncores+k cores, then 
 						// the scheduler will start j on ncores only if 
@@ -1219,9 +1219,9 @@ namespace NP {
 
 						DM("=== t_high = " << t_high << ", t_wc = " << t_wc << std::endl);
 						auto _st = start_times(*s, j, t_wc1, t_high, t_avail, p); // TODO Hm... issues when using t_wc2 instead of t_wc1
-						std::cout << "_st = (" << _st.first << "," << _st.second << ") = start_times(" << *s << "," << j << ", " << t_wc1 << ", " << t_high << "," << t_avail << "," << p << ")\n";
+						//std::cout << "_st = (" << _st.first << "," << _st.second << ") = start_times(" << *s << "," << j << ", " << t_wc1 << ", " << t_high << "," << t_avail << "," << p << ")\n";
 						if (_st.first > t_wc1 || _st.first >= t_high || _st.first >= t_avail) {
-							std::cout << "nope1: earliest start time is " << _st.first << " and t_wc1 is " << t_wc1 << " and t_high is " << t_high << " and t_avail is " << t_avail << std::endl;
+							//std::cout << "nope1: earliest start time is " << _st.first << " and t_wc1 is " << t_wc1 << " and t_high is " << t_high << " and t_avail is " << t_avail << std::endl;
 							continue; // nope, not next job that can be dispatched in state s, try the next state.
 						}
 						assert(_st.first >= 0 && _st.second >= 0);
@@ -1403,7 +1403,7 @@ namespace NP {
 				// latest time by which a work-conserving scheduler
 				// certainly schedules some job
 				auto upbnd_t_wc = std::max(avail_max, nxt_ready_job);
-				std::cout << "utwc is " << upbnd_t_wc << " because avail_max is " << avail_max << " and nxt is " << nxt_ready_job << std::endl;
+				//std::cout << "utwc is " << upbnd_t_wc << " because avail_max is " << avail_max << " and nxt is " << nxt_ready_job << std::endl;
 
 				DM(n << std::endl);
 				DM("t_min: " << t_min << std::endl
@@ -1420,12 +1420,12 @@ namespace NP {
 					//std::cout << "\n\nStart consider " << j << " with node " << &n << std::endl;
 					DM(j << " (" << index_of(j) << ")" << std::endl);
 					// stop looking once we've left the window of interest
-					std::cout << "consider " << j.get_job_index() << " with earliest arrival " << j.earliest_arrival() << " and bound " << upbnd_t_wc << std::endl;
+					//std::cout << "consider " << j.get_job_index() << " with earliest arrival " << j.earliest_arrival() << " and bound " << upbnd_t_wc << std::endl;
 					if (j.earliest_arrival() > upbnd_t_wc)
 						break; // TODO Revert to break after testing
 
 					// Job could be not ready due to precedence constraints, or due to the reconfiguration agent
-					std::cout << "ready6 " << j.get_job_index() << std::endl;
+					//std::cout << "ready6 " << j.get_job_index() << std::endl;
 					if (!ready(n, j))
 						continue;
 
@@ -1442,7 +1442,7 @@ namespace NP {
 
 					bool did_dispatch = dispatch(n, j, upbnd_t_wc, t_high_wos);
 					found_one |= did_dispatch;
-					std::cout << "Dispatched " << j << "? " << did_dispatch << "\n\n";
+					//std::cout << "Dispatched " << j << "? " << did_dispatch << "\n\n";
 				}
 
 				// check for a dead end

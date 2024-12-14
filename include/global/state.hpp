@@ -728,7 +728,7 @@ namespace NP {
 
 			Time next_certain_job_ready_time() const
 			{
-				std::cout << "next certain job ready time: " << next_certain_successor_jobs_disptach << " and " << next_certain_sequential_source_job_release << std::endl;
+				//std::cout << "next certain job ready time: " << next_certain_successor_jobs_disptach << " and " << next_certain_sequential_source_job_release << std::endl;
 				return std::min(next_certain_successor_jobs_disptach,
 					std::min(next_certain_sequential_source_job_release,
 						next_certain_gang_source_job_disptach));
