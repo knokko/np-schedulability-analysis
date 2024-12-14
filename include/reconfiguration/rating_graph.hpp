@@ -244,6 +244,10 @@ namespace NP::Reconfiguration {
 			rating_graph->set_successful(attachment->index);
 		}
 
+		bool may_potentially_forbid_jobs() override {
+			return true;
+		}
+
 		bool is_allowed(const Global::Schedule_node<Time> &node, const Job<Time> &next_job) override {
 			const auto attachment = dynamic_cast<Attachment_rating_node*>(node.attachment);
 			assert(attachment);

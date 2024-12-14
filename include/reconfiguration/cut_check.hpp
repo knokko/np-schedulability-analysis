@@ -104,6 +104,10 @@ namespace NP::Reconfiguration {
 			}
 		}
 
+		bool may_potentially_forbid_jobs() override {
+			return true;
+		}
+
 		bool is_allowed(const Global::Schedule_node<Time> &node, const Job<Time> &next_job) override {
 			if (did_take_cut_edge) return false;
 			const auto attachment = dynamic_cast<Attachment_cut_check*>(node.attachment);

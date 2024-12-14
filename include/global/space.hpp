@@ -369,11 +369,10 @@ namespace NP {
 				}
 
 				for (const Job<Time>& j : jobs) {
-					if (_predecessors_suspensions[j.get_job_index()].size() > 0 || true) { // TODO Get rid of this || true
+					if (_predecessors_suspensions[j.get_job_index()].size() > 0 || can_have_arbitrary_blocks()) {
 						_successor_jobs_by_latest_arrival.insert({ j.latest_arrival(), &j });
 					}
 					else if (j.get_min_parallelism() == 1) {
-						// TODO Main suspect
 						_sequential_source_jobs_by_latest_arrival.insert({ j.latest_arrival(), &j });
 					}
 					else {
@@ -390,6 +389,10 @@ namespace NP {
 			}
 
 		private:
+
+			bool can_have_arbitrary_blocks() const {
+				return reconfiguration_agent && reconfiguration_agent->may_potentially_forbid_jobs();
+			}
 
 			void count_edge()
 			{
@@ -780,8 +783,8 @@ namespace NP {
 
 				// a higher priority source job cannot be released before 
 				// a source job of any priority is released
-				//Time t_earliest = n.get_next_certain_source_job_release();
-				Time t_earliest = 0; // TODO Use bound above when reconfiguration agent allows it
+				Time t_earliest = n.get_next_certain_source_job_release();
+				if (can_have_arbitrary_blocks()) t_earliest = 0;
 
 				for (auto it = sequential_source_jobs_by_latest_arrival.lower_bound(t_earliest);
 					it != sequential_source_jobs_by_latest_arrival.end(); it++)
@@ -1195,8 +1198,11 @@ namespace NP {
 						// Calculate t_wc and t_high
 						Time next_cjr = next_certain_job_ready_time(n, *s);
 						Time next_sca = s->core_availability(p).max();
+
+//						if (can_have_arbitrary_blocks()) ehm;
+//						else ehm;
 						Time t_wc1 = std::max(next_sca, next_cjr);
-						Time t_wc2 = next_sca; // TODO Optionally use next_certain_job_ready_time
+						//Time t_wc2 = next_sca; // TODO Optionally use next_certain_job_ready_time
 						//std::cout << "t_wc = " << t_wc << " = max(" << s->core_availability(p).max() << ", " << next_certain_job_ready_time(n, *s) << ")\n";
 
 						Time t_high_succ = next_certain_higher_priority_successor_job_ready_time(n, *s, j, p, saturating_add(t_wc1, 1));
@@ -1213,7 +1219,7 @@ namespace NP {
 
 						DM("=== t_high = " << t_high << ", t_wc = " << t_wc << std::endl);
 						auto _st = start_times(*s, j, t_wc1, t_high, t_avail, p); // TODO Hm... issues when using t_wc2 instead of t_wc1
-						std::cout << "_st = (" << _st.first << "," << _st.second << ") = start_times(" << *s << "," << j << ", " << t_wc2 << ", " << t_high << "," << t_avail << "," << p << ")\n";
+						std::cout << "_st = (" << _st.first << "," << _st.second << ") = start_times(" << *s << "," << j << ", " << t_wc1 << ", " << t_high << "," << t_avail << "," << p << ")\n";
 						if (_st.first > t_wc1 || _st.first >= t_high || _st.first >= t_avail) {
 							std::cout << "nope1: earliest start time is " << _st.first << " and t_wc1 is " << t_wc1 << " and t_high is " << t_high << " and t_avail is " << t_avail << std::endl;
 							continue; // nope, not next job that can be dispatched in state s, try the next state.
@@ -1379,16 +1385,18 @@ namespace NP {
 				auto t_min = n.earliest_job_release();
 				// latest time some unfinished job is certainly ready
 				auto nxt_ready_job = n.next_certain_job_ready_time();
-				// TODO Only run this for loop if needed
-				for (auto it = jobs_by_earliest_arrival.lower_bound(t_min);
-					 it != jobs_by_earliest_arrival.end();
-					 it++
-				) {
-					const Job<Time>& j = *it->second;
-					if (j.latest_arrival() < nxt_ready_job && ready(n, j)) {
-						nxt_ready_job = j.latest_arrival();
+				if (can_have_arbitrary_blocks()) {
+					for (auto it = jobs_by_earliest_arrival.lower_bound(t_min);
+						 it != jobs_by_earliest_arrival.end();
+						 it++
+					) {
+						const Job<Time>& j = *it->second;
+						if (j.latest_arrival() < nxt_ready_job && ready(n, j)) {
+							nxt_ready_job = j.latest_arrival();
+						}
 					}
 				}
+
 
 				// latest time all cores are certainly available
 				auto avail_max = n.latest_core_availability();

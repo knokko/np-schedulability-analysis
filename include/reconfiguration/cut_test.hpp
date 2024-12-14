@@ -20,7 +20,7 @@ namespace NP::Reconfiguration {
 		std::vector<bool> did_intervene;
 	public:
 		static Cut_test_result perform(
-				Scheduling_problem<Time> &problem,
+				const Scheduling_problem<Time> &problem,
 				std::vector<Rating_graph_cut> remaining_cuts
 		) {
 			Agent_cut_test agent;
@@ -75,6 +75,10 @@ namespace NP::Reconfiguration {
 			}
 
 			return new_attachment;
+		}
+
+		bool may_potentially_forbid_jobs() override {
+			return true;
 		}
 
 		bool is_allowed(const Global::Schedule_node<Time> &node, const Job<Time> &next_job) override {
