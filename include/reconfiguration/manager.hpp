@@ -38,7 +38,7 @@ namespace NP::Reconfiguration {
 			}
 
 			if (!options.skip_graph) {
-				auto graph_solution = apply_graph_strategy(problem);
+				auto graph_solution = apply_graph_strategy(&problem);
 				if (graph_solution.size() > 0) {
 					std::cout << "The given problem is not schedulable, but you can make it schedulable by following these steps:\n";
 					for (auto solution : graph_solution) solution->print();
