@@ -24,7 +24,7 @@ namespace NP::Reconfiguration {
 				Scheduling_problem<Time> &problem, Index_collection *interesting_jobs
 		) : original_problem(&problem), adapted_problem(problem), interesting_jobs(interesting_jobs) { }
 
-		std::vector<Solution*> find_local_minimal_solution() {
+		std::vector<Solution<Time>*> find_local_minimal_solution() {
 
 			// Assume pessimistic arrival times and running times for all jobs
 			for (const auto job_index : *interesting_jobs) {
@@ -35,7 +35,7 @@ namespace NP::Reconfiguration {
 			// Return an empty vector when even that doesn't solve the problem
 			if (!attempt_adapted_problem()) return {};
 
-			std::vector<Solution*> solution;
+			std::vector<Solution<Time>*> solution;
 			for (const auto job_index : *interesting_jobs) {
 				auto original_job = original_problem->jobs[job_index];
 				auto adapted_job = original_job;

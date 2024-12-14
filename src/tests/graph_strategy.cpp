@@ -5,6 +5,7 @@
 #include "global/space.hpp"
 #include "reconfiguration/attempt.hpp"
 #include "reconfiguration/graph_strategy.hpp"
+#include "reconfiguration/verifier.hpp"
 
 using namespace NP;
 
@@ -29,13 +30,88 @@ TEST_CASE("apply_graph_strategy") {
 
 	auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
 
-	const auto solutions = Reconfiguration::apply_graph_strategy<dtime_t>(problem);
+	const auto solutions = Reconfiguration::apply_graph_strategy<dtime_t>(&problem);
 	REQUIRE(solutions.size() == 1);
 
-	const auto solution = dynamic_cast<Reconfiguration::Precedence_solution*>(solutions[0]);
+	const auto solution = dynamic_cast<Reconfiguration::Precedence_solution<dtime_t>*>(solutions[0]);
 	REQUIRE(solution);
 	CHECK(solution->from == jobs[1].get_id());
 	CHECK(solution->to == jobs[8].get_id());
+}
+
+TEST_CASE("Graph strategy sanity 2") {
+	Global::State_space<dtime_t>::Workload jobs {
+			Job<dtime_t>{0, Interval<dtime_t>(10, 18), Interval<dtime_t>(8, 8), 50, 0, 0, 0},
+			Job<dtime_t>{1, Interval<dtime_t>(10, 17), Interval<dtime_t>(8, 8), 50, 1, 1, 1},
+
+			Job<dtime_t>{2, Interval<dtime_t>(10, 17), Interval<dtime_t>(100, 100), 900, 2, 2, 2},
+	};
+
+	const auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
+
+	const auto solutions = Reconfiguration::apply_graph_strategy(&problem);
+	REQUIRE(solutions.size() == 1);
+
+	const auto solution = dynamic_cast<Reconfiguration::Precedence_solution<dtime_t>*>(solutions[0]);
+	REQUIRE(solution);
+	if (solution->from != jobs[1].get_id()) CHECK(solution->from == jobs[0].get_id());
+	CHECK(solution->to == jobs[2].get_id());
+
+	REQUIRE(Reconfiguration::verify_solution(&problem, solutions));
+	// TODO Use and test verify_solution more often
+}
+
+TEST_CASE("Graph strategy cut-explore first job (2)") {
+	Global::State_space<dtime_t>::Workload jobs {
+			// Job 0 must go first
+			Job<dtime_t>{0, Interval<dtime_t>(10, 18), Interval<dtime_t>(8, 8), 50, 0, 0, 0},
+
+			// If one of these goes first, then job 0 will miss its deadline
+			Job<dtime_t>{1, Interval<dtime_t>(10, 16), Interval<dtime_t>(100, 100), 900, 1, 1, 1},
+			Job<dtime_t>{2, Interval<dtime_t>(16, 16), Interval<dtime_t>(100, 100), 900, 2, 2, 2},
+	};
+
+	const auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
+
+	const auto solutions = Reconfiguration::apply_graph_strategy<dtime_t>(&problem);
+	REQUIRE(solutions.size() == 2);
+
+	for (const auto raw_solution : solutions) {
+		const auto solution = dynamic_cast<Reconfiguration::Precedence_solution<dtime_t>*>(raw_solution);
+		REQUIRE(solution);
+		REQUIRE(solution->from.task == 0);
+		REQUIRE(solution->to.task > 0);
+	}
+
+	REQUIRE(Reconfiguration::verify_solution(&problem, solutions));
+}
+
+TEST_CASE("Graph strategy cut-explore first job (3)") {
+	Global::State_space<dtime_t>::Workload jobs {
+			// Either job 0, 1, or 2 should be first, but job 2 won't be first by default
+			Job<dtime_t>{0, Interval<dtime_t>(10, 18), Interval<dtime_t>(8, 8), 50, 0, 0, 0},
+			Job<dtime_t>{1, Interval<dtime_t>(10, 17), Interval<dtime_t>(8, 8), 50, 1, 1, 1},
+			Job<dtime_t>{2, Interval<dtime_t>(18, 18), Interval<dtime_t>(8, 8), 50, 2, 2, 2},
+
+			// When either job 3, 4, or 5 is executed as first job, jobs 0 to 2 will miss their deadlines
+			Job<dtime_t>{3, Interval<dtime_t>(10, 16), Interval<dtime_t>(100, 100), 900, 3, 3, 3},
+			Job<dtime_t>{4, Interval<dtime_t>(16, 16), Interval<dtime_t>(100, 100), 900, 4, 4, 4},
+			Job<dtime_t>{5, Interval<dtime_t>(16, 16), Interval<dtime_t>(100, 100), 900, 5, 5, 5},
+	};
+
+	const auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
+
+	const auto solutions = Reconfiguration::apply_graph_strategy<dtime_t>(&problem);
+	REQUIRE(solutions.size() == 3);
+
+	for (const auto raw_solution : solutions) {
+		const auto solution = dynamic_cast<Reconfiguration::Precedence_solution<dtime_t>*>(raw_solution);
+		REQUIRE(solution);
+		REQUIRE(solution->from.task <= 2);
+		REQUIRE(solution->to.task > 2);
+	}
+
+	REQUIRE(Reconfiguration::verify_solution(&problem, solutions));
 }
 
 TEST_CASE("TODO handle rating of 0") {
@@ -45,7 +121,7 @@ TEST_CASE("TODO handle rating of 0") {
 			Job<dtime_t>{1, Interval<dtime_t>(1, 1), Interval<dtime_t>(1, 1), 50, 2, 1, 1},
 	};
 
-	auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
+	const auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
 
 	Reconfiguration::Rating_graph rating_graph;
 	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);

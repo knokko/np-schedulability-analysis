@@ -112,7 +112,7 @@ namespace NP {
 				assert(core_avail.size() > 0);
 				assert(core_avail.size() >= p);
 				assert(p > 0);
-				std::cout << "core availability is " << core_avail[p - 1] << std::endl;
+				//std::cout << "core availability is " << core_avail[p - 1] << std::endl;
 				return core_avail[p - 1];
 			}
 
@@ -320,7 +320,7 @@ namespace NP {
 				auto est = start_times.min();
 				auto lst = start_times.max();
 				auto eft = finish_times.min();
-				std::cout << "eft is " << eft << std::endl;
+				//std::cout << "eft is " << eft << std::endl;
 				auto lft = finish_times.max();
 
 				int n_prec = 0;
@@ -347,7 +347,7 @@ namespace NP {
 					// if there are n_prec predecessors running, n_prec cores must be available when j starts
 					for (int i = m; i < n_prec; i++) {
 						pa[pa_idx] = est; pa_idx++; //pa.push_back(est); // TODO: GN: check whether we can replace by est all the time since predecessors must possibly be finished by est to let j start
-						std::cout << "init pa to " << pa[pa_idx - 1] << std::endl;
+						//std::cout << "init pa to " << pa[pa_idx - 1] << std::endl;
 						ca[ca_idx] = std::min(lst, std::max(est, from.core_avail[i].max())); ca_idx++; //ca.push_back(std::min(lst, std::max(est, from.core_avail[i].max())));
 					}
 				}
@@ -360,13 +360,13 @@ namespace NP {
 						// add the finish time of j ncores times since it runs on ncores
 						for (int p = 0; p < m; p++) {
 							pa[pa_idx] = eft; pa_idx++; //pa.push_back(eft);
-							std::cout << "init2 pa to " << pa[pa_idx - 1] << std::endl;
+							//std::cout << "init2 pa to " << pa[pa_idx - 1] << std::endl;
 						}
 						eft_added_to_pa = true;
 					}
 
 					pa[pa_idx] = std::max(est, from.core_avail[i].min()); pa_idx++; //pa.push_back(std::max(est, from.core_avail[i].min()));
-					std::cout << "init3 pa to " << pa[pa_idx - 1] << std::endl;
+					//std::cout << "init3 pa to " << pa[pa_idx - 1] << std::endl;
 					if (!lft_added_to_ca && lft < from.core_avail[i].max()) {
 						// add the finish time of j ncores times since it runs on ncores
 						for (int p = 0; p < m; p++) {
@@ -380,7 +380,7 @@ namespace NP {
 					// add the finish time of j ncores times since it runs on ncores
 					for (int p = 0; p < m; p++) {
 						pa[pa_idx] = eft; pa_idx++; //pa.push_back(eft);
-						std::cout << "init4 pa to " << pa[pa_idx - 1] << std::endl;
+						//std::cout << "init4 pa to " << pa[pa_idx - 1] << std::endl;
 					}
 				}
 				if (!lft_added_to_ca) {
@@ -394,7 +394,7 @@ namespace NP {
 				{
 					DM(i << " -> " << pa[i] << ":" << ca[i] << std::endl);
 					core_avail.emplace_back(pa[i], ca[i]);
-					std::cout << "update core availability: set " << i << " to " << core_avail[i] << std::endl;
+					//std::cout << "update core availability: set " << i << " to " << core_avail[i] << std::endl;
 				}
 				delete[] pa;
 				delete[] ca;

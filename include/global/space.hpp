@@ -493,7 +493,7 @@ namespace NP {
 								num_states++;
 
 								// update response times
-								std::cout << "frange is " << frange << std::endl;
+								//std::cout << "frange is " << frange << std::endl;
 								update_finish_times(new_n, j, frange);
 #ifdef CONFIG_COLLECT_SCHEDULE_GRAPH
 								edges.emplace_back(&j, &new_n, &next, frange, pmin);
@@ -528,7 +528,7 @@ namespace NP {
 				Reconfiguration::Attachment *attachment = nullptr;
 				if (reconfiguration_agent) attachment = reconfiguration_agent->create_initial_node_attachment();
 
-				std::cout << "initial next_certain_seq_release is " << next_certain_seq_release << std::endl;
+				//std::cout << "initial next_certain_seq_release is " << next_certain_seq_release << std::endl;
 				Node& n = new_node(num_cores, jobs_by_earliest_arrival.begin()->first, next_certain_release, next_certain_seq_release, attachment);
 				State& s = new_state(num_cores, next_certain_gang_release);
 				n.add_state(&s);
@@ -579,7 +579,7 @@ namespace NP {
 					delete& new_s; // if we could merge no need to keep track of the new state anymore
 				else
 				{
-					std::cout << "create state2\n";
+					//std::cout << "create state2\n";
 					n.add_state(&new_s); // else add the new state to the node
 					num_states++;
 				}
@@ -802,7 +802,7 @@ namespace NP {
 						break;
 					}
 				}
-				std::cout << "when is " << when << " and until is " << until << " and test is " << (when > 0) << std::endl;
+				//std::cout << "when is " << when << " and until is " << until << " and test is " << (when > 0) << std::endl;
 				return when;
 			}
 
@@ -874,7 +874,7 @@ namespace NP {
 				// a higer priority successor job cannot be ready before 
 				// a job of any priority is released
 				Time t_earliest = n.earliest_job_release();
-				std::cout << "t_earliest is " << t_earliest << " and ready_min is " << ready_min << " and when is " << when << std::endl;
+				//std::cout << "t_earliest is " << t_earliest << " and ready_min is " << ready_min << " and when is " << when << std::endl;
 				for (auto it = successor_jobs_by_latest_arrival.lower_bound(t_earliest);
 					it != successor_jobs_by_latest_arrival.end(); it++)
 				{
@@ -935,19 +935,19 @@ namespace NP {
 				auto rt = earliest_ready_time(s, j);
 				auto at = s.core_availability(ncores).min();
 				Time est = std::max(rt, at);
-				std::cout << "est is " << est << " is max(" << rt << "," << at << ")\n";
+				//std::cout << "est is " << est << " is max(" << rt << "," << at << ")\n";
 
 				DM("rt: " << rt << std::endl
 					<< "at: " << at << std::endl);
 
 				Time lst = std::min(t_wc,
 					std::min(t_high, t_avail) - Time_model::constants<Time>::epsilon());
-				std::cout << "lst = " << lst << " = min(" << t_wc << ", min(" << t_high << "," << t_avail << ") - eps)\n";
+				//std::cout << "lst = " << lst << " = min(" << t_wc << ", min(" << t_high << "," << t_avail << ") - eps)\n";
 
 				DM("est: " << est << std::endl);
 				DM("lst: " << lst << std::endl);
 
-				std::cout << "est is " << est << " is max(" << rt << "," << at << ")\n";
+				//std::cout << "est is " << est << " is max(" << rt << "," << at << ")\n";
 				return { est, lst };
 			}
 
@@ -1152,7 +1152,7 @@ namespace NP {
 					attachment);
 #endif
 
-				std::cout << "create state1\n";
+				//std::cout << "create state1\n";
 				next_node.add_state(&st);
 				num_states++;
 				return next_node;
@@ -1165,7 +1165,7 @@ namespace NP {
 			}
 
 			Time safe_add(Time a, Time b) {
-				std::cout << "safe_add(" << a << ", " << b << ") " << std::endl;
+				//std::cout << "safe_add(" << a << ", " << b << ") " << std::endl;
 				if (b < 0) throw "nope";
 				if (a > std::numeric_limits<Time>::max() - b) throw "overflow";
 
@@ -1224,9 +1224,9 @@ namespace NP {
 						Interval<Time> ftimes;
 						auto exec_time = j.get_cost(p);
 						Time eft = safe_add(_st.first, exec_time.min());
-						std::cout << "eft (" << eft << ") = " << _st.first << " + " << exec_time.min() << std::endl;
+						//std::cout << "eft (" << eft << ") = " << _st.first << " + " << exec_time.min() << std::endl;
 						Time lft = saturating_add(_st.second, exec_time.max());
-						std::cout << "lft (" << lft << ") = " << _st.second << " + " << exec_time.max() << std::endl;
+						//std::cout << "lft (" << lft << ") = " << _st.second << " + " << exec_time.max() << std::endl;
 
 						// check for possible abort actions
 						auto j_idx = j.get_job_index();
@@ -1252,16 +1252,16 @@ namespace NP {
 							// compute range of possible finish times
 							if (lft < eft) throw "dafuq";
 							ftimes = Interval<Time>{ eft, lft };
-							std::cout << "case3: eft is " << eft << " so ftimes is " << ftimes << std::endl;
+							//std::cout << "case3: eft is " << eft << " so ftimes is " << ftimes << std::endl;
 						}
 
 						// yep, job j is a feasible successor in state s
 						dispatched_one = true;
 
 						// update finish-time estimates
-						std::cout << "ftimes is " << ftimes << " before dispatching " << j << std::endl;
+						//std::cout << "ftimes is " << ftimes << " before dispatching " << j << std::endl;
 						update_finish_times(n, j, ftimes);
-						std::cout << "ftimes is " << ftimes << " after dispatching " << j << std::endl;
+						//std::cout << "ftimes is " << ftimes << " after dispatching " << j << std::endl;
 
 						//std::cout << "\ndispatch?\n";
 						if (use_supernodes == false)

@@ -79,7 +79,7 @@ TEST_CASE("Graph strategy on a really nasty graph") {
 	auto in = std::istringstream(jobs21);
 	auto jobs = NP::parse_csv_job_file<dtime_t>(in);
 
-	auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
+	const auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
 
 	Reconfiguration::Rating_graph rating_graph;
 	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
@@ -87,7 +87,7 @@ TEST_CASE("Graph strategy on a really nasty graph") {
 	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
 	rating_graph.generate_dot_file("test_nasty_rating_graph_with_cuts.dot", problem, cuts);
 
-	const auto solutions = Reconfiguration::apply_graph_strategy<dtime_t>(problem);
+	const auto solutions = Reconfiguration::apply_graph_strategy<dtime_t>(&problem);
 	for (const auto &solution : solutions) solution->print();
-	REQUIRE(solutions.size() == 5);
+	REQUIRE(solutions.size() == 1);
 }

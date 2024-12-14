@@ -44,7 +44,7 @@ namespace NP::Reconfiguration {
 			}
 		}
 	public:
-		static void explore_fully(Scheduling_problem<Time> &problem, Rating_graph_cut *cut) {
+		static void explore_fully(const Scheduling_problem<Time> &problem, Rating_graph_cut *cut) {
 			assert(cut != nullptr);
 
 			Agent_cut_explore agent;

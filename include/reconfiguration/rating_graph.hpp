@@ -92,7 +92,7 @@ namespace NP::Reconfiguration {
 		void compute_ratings() {
 			for (int index = nodes.size() - 1; index >= 0; index--) {
 				auto &node = nodes[index];
-				std::cout << "compute ratings: original rating of node " << index << " is " << node.rating << std::endl;
+				//std::cout << "compute ratings: original rating of node " << index << " is " << node.rating << std::endl;
 				if (node.rating == -1.0f) {
 					node.rating = 0.0f;
 					continue;
@@ -193,7 +193,7 @@ namespace NP::Reconfiguration {
 		Rating_graph *rating_graph;
 
 	public:
-		static void generate(Scheduling_problem<Time> &problem, Rating_graph &rating_graph) {
+		static void generate(const Scheduling_problem<Time> &problem, Rating_graph &rating_graph) {
 			Agent_rating_graph agent;
 			agent.rating_graph = &rating_graph;
 

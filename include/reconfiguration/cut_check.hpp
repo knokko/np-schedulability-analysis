@@ -18,7 +18,7 @@ namespace NP::Reconfiguration {
 		bool did_take_cut_edge = false;
 		bool has_unexpected_failure = false;
 	public:
-		static int was_cut_performed(Scheduling_problem<Time> &problem, Rating_graph_cut cut) {
+		static int was_cut_performed(const Scheduling_problem<Time> &problem, Rating_graph_cut cut) {
 			Agent_cut_check agent;
 			agent.cut = cut;
 
