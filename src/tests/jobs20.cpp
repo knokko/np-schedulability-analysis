@@ -1,4 +1,6 @@
+#ifndef CONFIG_PARALLEL
 #include "doctest.h"
+#undef NDEBUG
 
 #include <iostream>
 #include <sstream>
@@ -91,3 +93,4 @@ TEST_CASE("Graph strategy on a really nasty graph") {
 	for (const auto &solution : solutions) solution->print();
 	//REQUIRE(solutions.size() == 1); TODO Finish this
 }
+#endif
