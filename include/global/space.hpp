@@ -1219,6 +1219,7 @@ namespace NP {
 						}
 						else {
 							// compute range of possible finish times
+							if (lft < eft) throw std::runtime_error("invalid finish time bounds");
 							ftimes = Interval<Time>{ eft, lft };
 						}
 
