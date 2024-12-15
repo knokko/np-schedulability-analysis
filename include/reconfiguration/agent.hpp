@@ -34,6 +34,10 @@ namespace NP::Reconfiguration {
 			//std::cout << "Finished node\n";
 		}
 
+		virtual bool may_potentially_forbid_jobs() {
+			return false;
+		}
+
 		virtual bool is_allowed(const Global::Schedule_node<Time> &node, const Job<Time> &next_job) {
 			return true;
 		}

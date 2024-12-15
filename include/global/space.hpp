@@ -367,7 +367,7 @@ namespace NP {
 				}
 
 				for (const Job<Time>& j : jobs) {
-					if (_predecessors_suspensions[j.get_job_index()].size() > 0) {
+					if (_predecessors_suspensions[j.get_job_index()].size() > 0 || can_have_arbitrary_blocks()) {
 						_successor_jobs_by_latest_arrival.insert({ j.latest_arrival(), &j });
 					}
 					else if (j.get_min_parallelism() == 1) {
@@ -387,6 +387,10 @@ namespace NP {
 			}
 
 		private:
+
+			bool can_have_arbitrary_blocks() const {
+				return reconfiguration_agent && reconfiguration_agent->may_potentially_forbid_jobs();
+			}
 
 			void count_edge()
 			{
@@ -773,6 +777,7 @@ namespace NP {
 				// a higher priority source job cannot be released before 
 				// a source job of any priority is released
 				Time t_earliest = n.get_next_certain_source_job_release();
+				if (can_have_arbitrary_blocks()) t_earliest = 0;
 
 				for (auto it = sequential_source_jobs_by_latest_arrival.lower_bound(t_earliest);
 					it != sequential_source_jobs_by_latest_arrival.end(); it++)
@@ -811,6 +816,7 @@ namespace NP {
 				// a higher priority source job cannot be released before 
 				// a source job of any priority is released
 				Time t_earliest = n.get_next_certain_source_job_release();
+				if (can_have_arbitrary_blocks()) t_earliest = 0;
 
 				for (auto it = gang_source_jobs_by_latest_arrival.lower_bound(t_earliest);
 					it != gang_source_jobs_by_latest_arrival.end(); it++)
@@ -1342,6 +1348,14 @@ namespace NP {
 				auto t_min = n.earliest_job_release();
 				// latest time some unfinished job is certainly ready
 				auto nxt_ready_job = n.next_certain_job_ready_time();
+				if (can_have_arbitrary_blocks()) {
+					for (auto it = jobs_by_earliest_arrival.lower_bound(t_min); it != jobs_by_earliest_arrival.end(); it++) {
+						const Job<Time>& j = *it->second;
+						if (j.latest_arrival() < nxt_ready_job && ready(n, j)) {
+							nxt_ready_job = j.latest_arrival();
+						}
+					}
+				}
 				// latest time all cores are certainly available
 				auto avail_max = n.latest_core_availability();
 				// latest time by which a work-conserving scheduler
