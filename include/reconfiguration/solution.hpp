@@ -3,16 +3,21 @@
 
 namespace NP::Reconfiguration {
 
-	struct Solution {
+	template<class Time> struct Solution {
 		virtual ~Solution() = default;
 
 		virtual void print() {
 			assert(false);
 			std::cout << "To be implemented!\n";
 		}
+
+		virtual void apply(Scheduling_problem<Time> &problem) {
+			assert(false);
+			std::cout << "To be implemented!\n";
+		}
 	};
 
-	template<class Time> struct PessimisticArrivalTimeSolution final : Solution {
+	template<class Time> struct PessimisticArrivalTimeSolution final : Solution<Time> {
 		JobID job_id{0, 0};
 		Time earliest;
 		Time latest;
@@ -23,7 +28,7 @@ namespace NP::Reconfiguration {
 		}
 	};
 
-	template<class Time> struct PessimisticExecutionTimeSolution final : Solution {
+	template<class Time> struct PessimisticExecutionTimeSolution final : Solution<Time> {
 		JobID job_id{0, 0};
 		Time bestCase;
 		Time worstCase;
@@ -34,7 +39,7 @@ namespace NP::Reconfiguration {
 		}
 	};
 
-	struct Precedence_solution final : Solution {
+	template<class Time> struct Precedence_solution final : Solution<Time> {
 		JobID from;
 		JobID to;
 
@@ -42,6 +47,10 @@ namespace NP::Reconfiguration {
 
 		void print() override {
 			std::cout << "Add a precedence constraint to ensure that " << from << " must finish before " << to << " can start\n";
+		}
+
+		void apply(Scheduling_problem<Time> &problem) override {
+			problem.prec.push_back(Precedence_constraint<Time>(from, to, Interval<Time>()));
 		}
 	};
 }

@@ -187,7 +187,7 @@ namespace NP::Reconfiguration {
 		Rating_graph *rating_graph;
 
 	public:
-		static void generate(Scheduling_problem<Time> &problem, Rating_graph &rating_graph) {
+		static void generate(const Scheduling_problem<Time> &problem, Rating_graph &rating_graph) {
 			Agent_rating_graph agent;
 			agent.rating_graph = &rating_graph;
 

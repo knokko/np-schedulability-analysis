@@ -44,6 +44,8 @@ TEST_CASE("Rating graph + cutter") {
 	Reconfiguration::Rating_graph rating_graph;
 	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
 
+	rating_graph.generate_dot_file("rating_graph_without_cuts.dot", problem, std::vector<Reconfiguration::Rating_graph_cut>());
+
 	REQUIRE(rating_graph.nodes.size() == 11);
 
 	// Node 0 is the root, and can only take job 0
@@ -107,15 +109,17 @@ TEST_CASE("Rating graph + cutter") {
 	for (int job = 0; job < 10; job++) CHECK(path->can_take_job(node2, job) == -1);
 	std::vector<Reconfiguration::Rating_graph_cut> no_cuts;
 
+	rating_graph.generate_dot_file("rating_graph_with_cuts.dot", problem, cuts);
+
 	// was_cut_performed should return 1 since we didn't fix the cut
-	CHECK(Reconfiguration::Agent_cut_check<dtime_t>::was_cut_performed(problem, cuts[0]) == 1);
+	REQUIRE(Reconfiguration::Agent_cut_check<dtime_t>::was_cut_performed(problem, cuts[0]) == 1);
 	auto test_result_failed = Reconfiguration::Agent_cut_test<dtime_t>::perform(problem, no_cuts);
 	CHECK(test_result_failed.has_unexpected_failures);
 	CHECK(test_result_failed.fixed_cut_indices.empty());
 
 	// Sanity check: if the cut is avoided, the problem becomes schedulable
 	auto test_result_avoided = Reconfiguration::Agent_cut_test<dtime_t>::perform(problem, cuts);
-	CHECK(!test_result_avoided.has_unexpected_failures);
+	REQUIRE(!test_result_avoided.has_unexpected_failures);
 	CHECK(test_result_avoided.fixed_cut_indices.empty());
 
 	// fix the cut, which should cause was_cut_performed to return 0
@@ -140,5 +144,49 @@ TEST_CASE("Rating graph + cutter") {
 	CHECK(precedence_attempt->before == 1);
 	REQUIRE(precedence_attempt->after.size() == 1);
 	CHECK(precedence_attempt->after[0] == 8);
+}
+
+TEST_CASE("Rating graph sanity 1") {
+	Global::State_space<dtime_t>::Workload jobs {
+			Job<dtime_t>{0, Interval<dtime_t>(100, 100), Interval<dtime_t>(100, 200), 1100, 1, 0, 0},
+			Job<dtime_t>{1, Interval<dtime_t>(10, 18), Interval<dtime_t>(8, 8), 50, 2, 1, 1},
+	};
+
+	auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
+
+	Reconfiguration::Rating_graph rating_graph;
+	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
+	rating_graph.generate_dot_file("test_rating_graph_sanity1_early.dot", problem, std::vector<Reconfiguration::Rating_graph_cut>());
+	REQUIRE(rating_graph.nodes[0].rating == 1.0);
+	REQUIRE(rating_graph.nodes[0].edges.size() == 1);
+
+	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
+	rating_graph.generate_dot_file("test_rating_graph_sanity1_late.dot", problem, cuts);
+
+	REQUIRE(cuts.size() == 0);
+}
+
+TEST_CASE("Rating graph sanity 2") {
+	Global::State_space<dtime_t>::Workload jobs {
+			Job<dtime_t>{0, Interval<dtime_t>(10, 18), Interval<dtime_t>(8, 8), 50, 0, 0, 0},
+			Job<dtime_t>{1, Interval<dtime_t>(10, 17), Interval<dtime_t>(8, 8), 50, 1, 1, 1},
+
+			Job<dtime_t>{2, Interval<dtime_t>(10, 17), Interval<dtime_t>(100, 100), 900, 2, 2, 2},
+	};
+
+	auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
+
+	Reconfiguration::Rating_graph rating_graph;
+	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
+	REQUIRE(rating_graph.nodes[0].rating < 1.0);
+
+	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
+	rating_graph.generate_dot_file("test_rating_graph_sanity2.dot", problem, cuts);
+
+	REQUIRE(cuts.size() == 1);
+	REQUIRE(cuts[0].previous_jobs->length() == 0);
+	REQUIRE(cuts[0].allowed_jobs.size() == 2);
+	REQUIRE(cuts[0].forbidden_jobs.size() == 1);
+	REQUIRE(cuts[0].forbidden_jobs[0] == 2);
 }
 #endif

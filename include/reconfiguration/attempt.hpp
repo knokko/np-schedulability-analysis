@@ -12,7 +12,7 @@ namespace NP::Reconfiguration {
 			assert(false);
 		}
 
-		virtual void add_solutions(std::vector<Solution*> &solutions, Scheduling_problem<Time> &problem) {
+		virtual void add_solutions(std::vector<Solution<Time>*> &solutions, Scheduling_problem<Time> &problem) {
 			assert(false);
 		}
 
@@ -37,11 +37,11 @@ namespace NP::Reconfiguration {
 			std::cout << std::endl;
 		}
 
-		void add_solutions(std::vector<Solution*> &solutions, Scheduling_problem<Time> &problem) override {
+		void add_solutions(std::vector<Solution<Time>*> &solutions, Scheduling_problem<Time> &problem) override {
 			const JobID before_id = problem.jobs[before].get_id();
 			for (const auto after_index : after) {
 				const JobID after_id = problem.jobs[after_index].get_id();
-				solutions.push_back(new Precedence_solution(before_id, after_id));
+				solutions.push_back(new Precedence_solution<Time>(before_id, after_id));
 			}
 		}
 
