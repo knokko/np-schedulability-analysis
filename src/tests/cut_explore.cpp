@@ -34,7 +34,7 @@ TEST_CASE("cut_explorer: mini first job choice") {
 	auto &cut = cuts[0];
 	REQUIRE(cut.allowed_jobs.size() == 1);
 	REQUIRE(cut.forbidden_jobs.size() == 1);
-	Reconfiguration::Agent_cut_explore<dtime_t>::explore_fully(problem, &cut);
+	Reconfiguration::Agent_cut_explore<dtime_t>::explore_forbidden_jobs(problem, &cut);
 
 	//REQUIRE(cut.extra_allowed_jobs.size() == 1); TODO Maybe bring this back later
 	//REQUIRE(cut.extra_allowed_jobs[0] == 1);
@@ -70,7 +70,7 @@ TEST_CASE("cut_explorer: small first job choice") {
 	auto &cut = cuts[0];
 	REQUIRE(cut.allowed_jobs.size() == 1);
 	REQUIRE(cut.forbidden_jobs.size() == 1);
-	Reconfiguration::Agent_cut_explore<dtime_t>::explore_fully(problem, &cut);
+	Reconfiguration::Agent_cut_explore<dtime_t>::explore_forbidden_jobs(problem, &cut);
 
 	//REQUIRE(cut.extra_allowed_jobs.size() == 1); TODO Maybe bring back later
 	//REQUIRE(cut.extra_allowed_jobs[0] == 1);
@@ -104,7 +104,7 @@ TEST_CASE("cut_explorer: explore first job choices") {
 	auto &cut = cuts[0];
 	REQUIRE(cut.allowed_jobs.size() == 2);
 	REQUIRE(cut.forbidden_jobs.size() == 1);
-	Reconfiguration::Agent_cut_explore<dtime_t>::explore_fully(problem, &cut);
+	Reconfiguration::Agent_cut_explore<dtime_t>::explore_forbidden_jobs(problem, &cut);
 
 	//REQUIRE(cut.extra_allowed_jobs.size() == 1);
 	//REQUIRE(cut.extra_allowed_jobs[0] == 2); TODO Maybe bring back later
@@ -142,7 +142,7 @@ TEST_CASE("cut_explorer: explore first job choices complex") {
 	auto &cut = cuts[0];
 	REQUIRE(cut.allowed_jobs.size() == 2);
 	REQUIRE(cut.forbidden_jobs.size() == 1);
-	Reconfiguration::Agent_cut_explore<dtime_t>::explore_fully(problem, &cut);
+	Reconfiguration::Agent_cut_explore<dtime_t>::explore_forbidden_jobs(problem, &cut);
 
 	//REQUIRE(cut.extra_allowed_jobs.size() == 1);
 	//REQUIRE(cut.extra_allowed_jobs[0] == 2); TODO Maybe bring back later
@@ -183,7 +183,7 @@ TEST_CASE("cut_explorer: explore second job choices") {
 	auto &cut = cuts[0];
 	REQUIRE(cut.allowed_jobs.size() == 2);
 	REQUIRE(cut.forbidden_jobs.size() == 1);
-	Reconfiguration::Agent_cut_explore<dtime_t>::explore_fully(problem, &cut);
+	Reconfiguration::Agent_cut_explore<dtime_t>::explore_forbidden_jobs(problem, &cut);
 
 //	REQUIRE(cut.extra_allowed_jobs.size() == 1); TODO Maybe bring back later
 //	REQUIRE(cut.extra_allowed_jobs[0] == 3);

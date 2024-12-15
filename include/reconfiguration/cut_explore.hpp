@@ -44,7 +44,7 @@ namespace NP::Reconfiguration {
 			}
 		}
 	public:
-		static void explore_fully(Scheduling_problem<Time> &problem, Rating_graph_cut *cut) {
+		static void explore_forbidden_jobs(Scheduling_problem<Time> &problem, Rating_graph_cut *cut) {
 			assert(cut != nullptr);
 
 			Agent_cut_explore agent;
@@ -57,7 +57,7 @@ namespace NP::Reconfiguration {
 			while (true) {
 				std::cout << "Start exploration\n";
 				Global::State_space<Time>::explore(problem, test_options, &agent);
-				if (agent.new_good_jobs.empty() && agent.new_bad_jobs.empty()) return;
+				if (agent.new_bad_jobs.empty()) return;
 
 				for (const auto good_job : agent.new_good_jobs) cut->extra_allowed_jobs.push_back(good_job);
 				for (const auto bad_job : agent.new_bad_jobs) cut->extra_forbidden_jobs.push_back(bad_job);
@@ -130,10 +130,7 @@ namespace NP::Reconfiguration {
 			if (attachment->node_index == CUT_EXPLORE_NODE_INDEX_CONTINUED) return true;
 
 			if (cut->previous_jobs->is_leaf(attachment->node_index)) {
-				return !contains(cut->allowed_jobs, next_job) &&
-						!contains(cut->forbidden_jobs, next_job) &&
-						!contains(cut->extra_allowed_jobs, next_job) &&
-						!contains(cut->extra_forbidden_jobs, next_job);
+				return !contains(cut->forbidden_jobs, next_job) && !contains(cut->extra_forbidden_jobs, next_job);
 			} else {
 				return cut->previous_jobs->can_take_job(
 						attachment->node_index, next_job.get_job_index()
