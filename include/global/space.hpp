@@ -1140,6 +1140,20 @@ namespace NP {
 				return next_node;
 			}
 
+			Time saturating_add(Time a, Time b) {
+				if (b < 0) throw std::runtime_error("saturating_add doesn't support negative b's");
+				if (a > std::numeric_limits<Time>::max() - b) return std::numeric_limits<Time>::max();
+
+				return a + b;
+			}
+
+			Time safe_add(Time a, Time b) {
+				if (b < 0) throw std::runtime_error("safe_add doesn't support negative b's");
+				if (a > std::numeric_limits<Time>::max() - b) throw std::runtime_error("overflow detected");
+
+				return a + b;
+			}
+
 			bool dispatch(const Node& n, const Job<Time>& j, Time t_wc_wos, Time t_high_wos)
 			{
 				// All states in node 'n' for which the job 'j' is eligible will 
@@ -1163,8 +1177,8 @@ namespace NP {
 						// Calculate t_wc and t_high
 						Time t_wc = std::max(s->core_availability(p).max(), next_certain_job_ready_time(n, *s));
 
-						Time t_high_succ = next_certain_higher_priority_successor_job_ready_time(n, *s, j, p, t_wc + 1);
-						Time t_high_gang = next_certain_higher_priority_gang_source_job_ready_time(n, *s, j, p, t_wc + 1);
+						Time t_high_succ = next_certain_higher_priority_successor_job_ready_time(n, *s, j, p, saturating_add(t_wc, 1));
+						Time t_high_gang = next_certain_higher_priority_gang_source_job_ready_time(n, *s, j, p, saturating_add(t_wc, 1));
 						Time t_high = std::min(t_high_wos, std::min(t_high_gang, t_high_succ));
 
 						// If j can execute on ncores+k cores, then 
@@ -1182,8 +1196,8 @@ namespace NP {
 						//calculate the job finish time interval
 						Interval<Time> ftimes;
 						auto exec_time = j.get_cost(p);
-						Time eft = _st.first + exec_time.min();
-						Time lft = _st.second + exec_time.max();
+						Time eft = safe_add(_st.first, exec_time.min());
+						Time lft = safe_add(_st.second, exec_time.max());
 
 						// check for possible abort actions
 						auto j_idx = j.get_job_index();
@@ -1358,7 +1372,7 @@ namespace NP {
 					// be incomplete...
 					assert(unfinished(n, j));
 
-					Time t_high_wos = next_certain_higher_priority_seq_source_job_release(n, j, upbnd_t_wc + 1);
+					Time t_high_wos = next_certain_higher_priority_seq_source_job_release(n, j, safe_add(upbnd_t_wc, 1));
 					// if there is a higher priority job that is certainly ready before job j is released at the earliest, 
 					// then j will never be the next job dispached by the scheduler
 					if (t_high_wos <= j.earliest_arrival())
