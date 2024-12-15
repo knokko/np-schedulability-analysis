@@ -148,7 +148,7 @@ if (j.exceeds_deadline(range.upto())) {
 +       if (early_exit) aborted = true;
 +       if (reconfiguration_agent) reconfiguration_agent->encountered_dead_end(n);
 +   } else if (reconfiguration_agent && found_one && current_job_count == jobs.size() - 1) {
-+       reconfiguration_agent->finished_node(n);
++       reconfiguration_agent->encountered_leaf_node(n);
     }
 ```
 This information is very useful, for instance to find out where deadline misses happen, or whether a particular deadline

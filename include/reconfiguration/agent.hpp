@@ -30,7 +30,7 @@ namespace NP::Reconfiguration {
 			//std::cout << "Encountered dead end\n";
 		}
 
-		virtual void finished_node(const Global::Schedule_node<Time> &dead_node) {
+		virtual void encountered_leaf_node(const Global::Schedule_node<Time> &dead_node) {
 			//std::cout << "Finished node\n";
 		}
 

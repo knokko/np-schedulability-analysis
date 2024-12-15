@@ -61,8 +61,9 @@ namespace NP::Reconfiguration {
 			nodes[node_index].rating = -1.0f;
 		}
 
-		void set_successful(int node_index) {
+		void mark_as_leaf_node(int node_index) {
 			assert(node_index >= 0 && node_index < nodes.size());
+			if (nodes[node_index].rating == -1.0f) return;
 
 			bool has_children = false;
 			for (const auto &edge : nodes[node_index].edges) {
@@ -232,10 +233,10 @@ namespace NP::Reconfiguration {
 			//std::cout << "missed deadline of job " << late_job.get_job_index() << " at index " << attachment->index << std::endl;
 		}
 
-		void finished_node(const Global::Schedule_node<Time> &node) override {
+		void encountered_leaf_node(const Global::Schedule_node<Time> &node) override {
 			const auto attachment = dynamic_cast<Attachment_rating_node*>(node.attachment);
 			assert(attachment);
-			rating_graph->set_successful(attachment->index);
+			rating_graph->mark_as_leaf_node(attachment->index);
 		}
 
 		bool is_allowed(const Global::Schedule_node<Time> &node, const Job<Time> &next_job) override {
