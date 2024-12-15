@@ -6,7 +6,7 @@
 
 namespace NP::Reconfiguration {
 
-	template<class Time> std::vector<std::unique_ptr<Attempt<Time>>> generate_precedence_attempts(Rating_graph_cut cut) {
+	template<class Time> std::vector<std::unique_ptr<Attempt<Time>>> generate_precedence_attempts(const Rating_graph_cut &cut) {
 		assert(!cut.allowed_jobs.empty());
 		assert(!cut.forbidden_jobs.empty());
 

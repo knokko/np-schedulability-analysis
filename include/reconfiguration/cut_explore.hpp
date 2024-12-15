@@ -44,7 +44,7 @@ namespace NP::Reconfiguration {
 			}
 		}
 	public:
-		static void explore_forbidden_jobs(Scheduling_problem<Time> &problem, Rating_graph_cut *cut) {
+		static void explore_forbidden_jobs(const Scheduling_problem<Time> &problem, Rating_graph_cut *cut) {
 			assert(cut != nullptr);
 
 			Agent_cut_explore agent;

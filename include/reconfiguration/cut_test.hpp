@@ -20,7 +20,7 @@ namespace NP::Reconfiguration {
 		std::vector<bool> did_intervene;
 	public:
 		static Cut_test_result perform(
-				Scheduling_problem<Time> &problem,
+				const Scheduling_problem<Time> &problem,
 				std::vector<Rating_graph_cut> remaining_cuts
 		) {
 			Agent_cut_test agent;
@@ -94,7 +94,7 @@ namespace NP::Reconfiguration {
 
 				for (auto forbidden_job : cut.forbidden_jobs) {
 					if (forbidden_job == next_job.get_job_index()) {
-						did_intervene[index] = true;
+						did_intervene[index] = true; // TODO Rework this since is_allowed shouldn't mutate the agent
 						return false;
 					}
 				}
