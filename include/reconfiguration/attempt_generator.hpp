@@ -12,7 +12,10 @@ namespace NP::Reconfiguration {
 
 		std::vector<std::unique_ptr<Attempt<Time>>> attempts;
 		for (const auto &allowed : cut.allowed_jobs) {
-			attempts.push_back(std::make_unique<Precedence_attempt<Time>>(allowed, cut.forbidden_jobs));
+			auto forbidden_jobs = cut.forbidden_jobs;
+			forbidden_jobs.reserve(cut.extra_forbidden_jobs.size());
+			for (const auto forbidden : cut.extra_forbidden_jobs) forbidden_jobs.push_back(forbidden);
+			attempts.push_back(std::make_unique<Precedence_attempt<Time>>(allowed, forbidden_jobs));
 		}
 
 		return attempts;
