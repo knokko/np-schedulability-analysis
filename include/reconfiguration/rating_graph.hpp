@@ -28,9 +28,9 @@ namespace NP::Reconfiguration {
 	}
 
 	struct Rating_edge {
-		const std::array<uint8_t, 5> raw_parent_node_index;
-		const std::array<uint8_t, 4> raw_child_node_index_offset;
-		const std::array<uint8_t, 3> raw_taken_job_index;
+		std::array<uint8_t, 5> raw_parent_node_index;
+		std::array<uint8_t, 4> raw_child_node_index_offset;
+		std::array<uint8_t, 3> raw_taken_job_index;
 
 		Rating_edge(size_t parent_node_index, size_t child_node_index, size_t taken_job_index) : raw_parent_node_index({
 			_extract(parent_node_index, 0), _extract(parent_node_index, 8), _extract(parent_node_index, 16),
@@ -117,21 +117,26 @@ namespace NP::Reconfiguration {
 		}
 
 		void compute_ratings() {
-			for (int index = nodes.size() - 1; index >= 0; index--) {
-				auto &node = nodes[index];
+			std::sort(edges.begin(), edges.end(), [](const Rating_edge &a, const Rating_edge &b) {
+				return a.get_parent_node_index() < b.get_parent_node_index();
+			});
+			// TODO remove after testing
+			assert(edges[0].get_parent_node_index() < edges[edges.size() - 1].get_parent_node_index());
+
+			size_t edge_index = edges.size() - 1;
+			for (int node_index = nodes.size() - 1; node_index >= 0; node_index--) {
+				auto &node = nodes[node_index];
 				if (node.rating == -1.0f) {
 					node.rating = 0.0f;
 					continue;
 				}
 
 				int num_children = 0;
-				// TODO Iterate over edges
-				// for (const auto &edge : node.edges) {
-				// 	if (edge.get_destination_node_index() > index) {
-				// 		node.rating += nodes[edge.get_destination_node_index()].rating;
-				// 		num_children += 1;
-				// 	}
-				// }
+				while (edge_index >= 0 && edges[edge_index].get_parent_node_index() == node_index) {
+					node.rating += nodes[edges[edge_index].get_child_node_index()].rating;
+					num_children += 1;
+					edge_index -= 1;
+				}
 				if (num_children > 1) node.rating /= num_children;
 			}
 		}

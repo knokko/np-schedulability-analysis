@@ -13,12 +13,27 @@
 using namespace NP;
 
 size_t get_edge_destination(Reconfiguration::Rating_graph &rating_graph, int node_index, Job_index taken_job) {
-	const auto node = rating_graph.nodes[node_index];
-	// for (const auto &edge : node.edges) {
-	// 	if (edge.get_taken_job() == taken_job) return edge.get_destination_node_index();
-	// }
+	for (const auto &edge : rating_graph.edges) {
+		if (edge.get_parent_node_index() == node_index && edge.get_taken_job_index() == taken_job) return edge.get_child_node_index();
+	}
 	REQUIRE(false);
 	return 0;
+}
+
+size_t get_edge_destination(Reconfiguration::Rating_graph &rating_graph, int node_index) {
+	for (const auto &edge : rating_graph.edges) {
+		if (edge.get_parent_node_index() == node_index) return edge.get_child_node_index();
+	}
+	REQUIRE(false);
+	return 0;
+}
+
+size_t get_number_of_edges(Reconfiguration::Rating_graph &rating_graph, int node_index) {
+	size_t result = 0;
+	for (const auto &edge : rating_graph.edges) {
+		if (edge.get_parent_node_index() == node_index) result += 1;
+	}
+	return result;
 }
 
 TEST_CASE("Rating graph + cutter") {
@@ -49,47 +64,41 @@ TEST_CASE("Rating graph + cutter") {
 	REQUIRE(rating_graph.nodes.size() == 11);
 
 	// Node 0 is the root, and can only take job 0
-	// CHECK(rating_graph.nodes[0].rating == 0.5f);
-	// REQUIRE(rating_graph.nodes[0].edges.size() == 1);
-	// REQUIRE(get_edge_destination(rating_graph, 0, 0) == 1); // Takes job 0 to node 1
+	CHECK(rating_graph.nodes[0].rating == 0.5f);
+	REQUIRE(get_number_of_edges(rating_graph, 0) == 1);
+	REQUIRE(get_edge_destination(rating_graph, 0, 0) == 1); // Takes job 0 to node 1
 
-	// // Node 1 can only take job 6
-	// CHECK(rating_graph.nodes[1].rating == 0.5f);
-	// REQUIRE(rating_graph.nodes[1].edges.size() == 2);
-	// REQUIRE(get_edge_destination(rating_graph, 1, 0) == 0); // Back-edge to node 0
-	// REQUIRE(get_edge_destination(rating_graph, 1, 6) == 2); // Takes job 6 to node 2
+	// Node 1 can only take job 6
+	CHECK(rating_graph.nodes[1].rating == 0.5f);
+	REQUIRE(get_number_of_edges(rating_graph, 1) == 1);
+	REQUIRE(get_edge_destination(rating_graph, 1, 6) == 2); // Takes job 6 to node 2
 
-	// // Node 2 can take either job 1 or job 8, where job 8 is a poor choice
-	// CHECK(rating_graph.nodes[2].rating == 0.5f);
-	// REQUIRE(rating_graph.nodes[2].edges.size() == 3);
-	// CHECK(get_edge_destination(rating_graph, 2, 6) == 1); // Back-edge to node 1
+	// Node 2 can take either job 1 or job 8, where job 8 is a poor choice
+	CHECK(rating_graph.nodes[2].rating == 0.5f);
+	REQUIRE(get_number_of_edges(rating_graph, 2) == 2);
 
-	// int failed_node_index = get_edge_destination(rating_graph, 2, 8);
-	// CHECK(rating_graph.nodes[failed_node_index].rating == 0.0);
-	// REQUIRE(rating_graph.nodes[failed_node_index].edges.size() == 1);
-	// CHECK(get_edge_destination(rating_graph, failed_node_index, 8) == 2); // Back-edge to node 2
+	int failed_node_index = get_edge_destination(rating_graph, 2, 8);
+	CHECK(rating_graph.nodes[failed_node_index].rating == 0.0);
+	REQUIRE(get_number_of_edges(rating_graph, failed_node_index) == 0);
 
-	// int right_node_index = get_edge_destination(rating_graph, 2, 1);
-	// CHECK(rating_graph.nodes[right_node_index].rating == 1.0);
-	// REQUIRE(rating_graph.nodes[right_node_index].edges.size() == 2);
-	// CHECK(get_edge_destination(rating_graph, right_node_index, 1) == 2); // Back-edge to node 2
-	// CHECK(get_edge_destination(rating_graph, right_node_index, 8) == 5);
+	int right_node_index = get_edge_destination(rating_graph, 2, 1);
+	CHECK(rating_graph.nodes[right_node_index].rating == 1.0);
+	REQUIRE(get_number_of_edges(rating_graph, right_node_index) == 1);
+	CHECK(get_edge_destination(rating_graph, right_node_index, 8) == 5);
 
-	// for (int index = 5; index < rating_graph.nodes.size(); index++) {
-	// 	CHECK(rating_graph.nodes[index].rating == 1.0);
+	for (int index = 5; index < rating_graph.nodes.size(); index++) {
+		CHECK(rating_graph.nodes[index].rating == 1.0);
 
-	// 	if (index != rating_graph.nodes.size() - 1) {
-	// 		REQUIRE(rating_graph.nodes[index].edges.size() == 2);
-	// 		for (const auto &edge : rating_graph.nodes[index].edges) {
-	// 			if (index > 5 && edge.get_destination_node_index() < index) CHECK(edge.get_destination_node_index() == index - 1);
-	// 			if (edge.get_destination_node_index() > index) CHECK(edge.get_destination_node_index() == index + 1);
-	// 		}
-	// 	} else {
-	// 		REQUIRE(rating_graph.nodes[index].edges.size() == 1);
-	// 		CHECK(get_edge_destination(rating_graph, index, 5) == 9);
-	// 	}
-	// }
+		if (index != rating_graph.nodes.size() - 1) {
+			REQUIRE(get_number_of_edges(rating_graph, index) == 1);
+			CHECK(get_edge_destination(rating_graph, index) == index + 1);
+		} else {
+			REQUIRE(get_number_of_edges(rating_graph, index) == 0);
+		}
+	}
 
+	// TODO
+	REQUIRE(false);
 	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
 	REQUIRE(cuts.size() == 1);
 	auto cut = cuts[0];
