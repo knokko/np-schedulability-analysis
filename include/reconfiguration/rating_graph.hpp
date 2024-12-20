@@ -99,7 +99,6 @@ namespace NP::Reconfiguration {
 		}
 
 		size_t add_node(size_t parent_index, Job_index taken_job) {
-			std::cout << "add_node to parent " << parent_index << " for job " << taken_job << "\n";
 			assert(taken_job >= 0);
 			if (nodes[parent_index].get_rating() == -1.0f) return parent_index;
 
@@ -110,7 +109,6 @@ namespace NP::Reconfiguration {
 		}
 
 		void insert_edge(size_t parent_index, size_t child_index, Job_index taken_job) {
-			std::cout << "insert_edge\n";
 			assert(parent_index >= 0 && parent_index < nodes.size());
 			assert(child_index >= 0 && child_index < nodes.size());
 			assert(taken_job >= 0);
@@ -119,7 +117,6 @@ namespace NP::Reconfiguration {
 		}
 
 		void set_missed_deadline(size_t node_index) {
-			std::cout << "missed deadline\n";
 			assert(node_index >= 0);
 			assert(node_index < nodes.size());
 			nodes[node_index].set_rating(-1.0f);
@@ -129,7 +126,6 @@ namespace NP::Reconfiguration {
 			assert(node_index >= 0 && node_index < nodes.size());
 			if (nodes[node_index].get_rating() == -1.0f) return;
 			nodes[node_index].set_rating(1.0f);
-			std::cout << "set leaf rating to " << nodes[node_index].get_rating() << " 1 of node " << node_index << "\n";
 		}
 
 		void compute_ratings() {
@@ -143,7 +139,6 @@ namespace NP::Reconfiguration {
 				auto &node = nodes[node_index];
 				if (node.get_rating() == -1.0f) {
 					node.set_rating(0.0f);
-					std::cout << "set missed rating to 0\n";
 					continue;
 				}
 
@@ -158,7 +153,6 @@ namespace NP::Reconfiguration {
 				}
 				if (num_children > 1) rating /= num_children;
 				node.set_rating(rating);
-				std::cout << "set rating to " << node.get_rating() << " (" << rating << ") of node " << node_index << "\n";
 			}
 
 			assert(edge_index == -1);
