@@ -66,7 +66,7 @@ namespace NP::Reconfiguration {
 
 		int add_node(int parent_index, Job_index taken_job) {
 			assert(taken_job >= 0);
-			if (will_miss_deadline(parent_index, taken_job)) return parent_index;
+			if (nodes[parent_index].rating == -1.0f) return parent_index;
 
 			int child_index = nodes.size();
 			nodes[parent_index].edges.push_back(Rating_edge(child_index, taken_job));
@@ -87,6 +87,7 @@ namespace NP::Reconfiguration {
 		void set_missed_deadline(int node_index) {
 			assert(node_index >= 0);
 			assert(node_index < nodes.size());
+			std::cout << "missed deadline of " << node_index << std::endl;
 			nodes[node_index].rating = -1.0f;
 		}
 
@@ -94,28 +95,7 @@ namespace NP::Reconfiguration {
 			std::cout << "mark node " << node_index << " as leaf node\n";
 			assert(node_index >= 0 && node_index < nodes.size());
 			if (nodes[node_index].rating == -1.0f) return;
-
-			// TODO How can a leaf node possibly have children?
-			bool has_children = false;
-			for (const auto &edge : nodes[node_index].edges) {
-				if (edge.get_destination_node_index() > node_index) {
-					//nodes[edge.get_destination_node_index()].rating = 1.0f;
-					has_children = true;
-				}
-			}
-			assert(!has_children);
-
-			//if (!has_children) 
 			nodes[node_index].rating = 1.0f;
-		}
-
-		bool will_miss_deadline(int parent_index, Job_index candidate_job) const {
-			assert(parent_index >= 0 && parent_index < nodes.size());
-			if (nodes[parent_index].rating == -1.0f) return true;
-			for (const auto &edge : nodes[parent_index].edges) {
-				if (edge.get_taken_job() == candidate_job && nodes[edge.get_destination_node_index()].rating == -1.0f) return true;
-			}
-			return false;
 		}
 
 		void compute_ratings() {
@@ -309,7 +289,9 @@ namespace NP::Reconfiguration {
 			const auto attachment = dynamic_cast<Attachment_rating_node*>(node.attachment);
 			assert(attachment);
 
-			return !rating_graph->will_miss_deadline(attachment->index, next_job.get_job_index());
+			bool result = rating_graph->nodes[attachment->index].rating != 1.0f;
+			assert(result);
+			return result;
 		}
 
 		bool allow_merge(
@@ -323,8 +305,8 @@ namespace NP::Reconfiguration {
 			assert(destination_attachment);
 
 			// Only allow merges when both nodes haven't missed a deadline yet
-			return (rating_graph->nodes[destination_attachment->index].rating != -1.0) &&
-				   !rating_graph->will_miss_deadline(parent_attachment->index, taken_job.get_job_index());
+			return rating_graph->nodes[destination_attachment->index].rating != -1.0f &&
+				   rating_graph->nodes[parent_attachment->index].rating != 1.0f;
 		}
 	};
 }
