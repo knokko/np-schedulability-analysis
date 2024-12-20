@@ -1155,7 +1155,7 @@ namespace NP {
 
 			Time safe_add(Time a, Time b) {
 				if (b < 0) throw std::runtime_error("safe_add doesn't support negative b's");
-				if (a > std::numeric_limits<Time>::max() - b) throw std::runtime_error("overflow detected");
+				if (a > std::numeric_limits<Time>::max() - b) throw std::overflow_error("overflow detected");
 
 				return a + b;
 			}
@@ -1402,8 +1402,6 @@ namespace NP {
 					observed_deadline_miss = true;
 					if (early_exit) aborted = true;
 					if (reconfiguration_agent) reconfiguration_agent->encountered_dead_end(n);
-				} else if (reconfiguration_agent && found_one && current_job_count == jobs.size() - 1) {
-					reconfiguration_agent->encountered_leaf_node(n);
 				}
 			}
 
@@ -1489,6 +1487,10 @@ namespace NP {
 					nodes_storage.pop_front();
 #endif
 
+				}
+
+				if (reconfiguration_agent) {
+					for (const Node& n : nodes()) reconfiguration_agent->mark_as_leaf_node(n);
 				}
 
 #ifdef CONFIG_PARALLEL

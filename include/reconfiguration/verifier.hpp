@@ -15,7 +15,10 @@ namespace NP::Reconfiguration {
 		Analysis_options test_options;
 		test_options.use_supernodes = false;
 
-		return Global::State_space<Time>::explore(fixed_problem, test_options)->is_schedulable();
+		auto space = Global::State_space<Time>::explore(fixed_problem, test_options);
+		bool is_schedulable = space->is_schedulable();
+		delete space;
+		return is_schedulable;
 	}
 }
 

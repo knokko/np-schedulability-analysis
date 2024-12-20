@@ -39,10 +39,12 @@ namespace NP::Reconfiguration {
 					}
 
 					validate_prec_cstrnts(adapted_problem.prec, adapted_problem.jobs);
-					auto adapted_result = Global::State_space<Time>::explore(
+					auto adapted_space = Global::State_space<Time>::explore(
                         adapted_problem, *test_options, &agent
                     );
-					if (adapted_result->is_schedulable()) {
+					bool is_schedulable = adapted_space->is_schedulable();
+					delete adapted_space;
+					if (is_schedulable) {
 						for (const auto forbidden_job : *forbidden_jobs) {
 							solutions.push_back(new Precedence_solution(alternative_job, forbidden_job));
 						}

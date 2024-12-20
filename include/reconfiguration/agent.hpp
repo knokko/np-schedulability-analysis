@@ -23,14 +23,14 @@ namespace NP::Reconfiguration {
 		) { }
 
 		virtual void missed_deadline(const Global::Schedule_node<Time> &failed_node, const Job<Time> &late_job) {
-			std::cout << "Missed deadline of job " << late_job.get_job_id() << "\n";
+			//std::cout << "Missed deadline of job " << late_job.get_job_id() << "\n";
 		}
 
 		virtual void encountered_dead_end(const Global::Schedule_node<Time> &dead_node) {
 			//std::cout << "Encountered dead end\n";
 		}
 
-		virtual void encountered_leaf_node(const Global::Schedule_node<Time> &dead_node) {
+		virtual void mark_as_leaf_node(const Global::Schedule_node<Time> &leaf_node) {
 			//std::cout << "Finished node\n";
 		}
 

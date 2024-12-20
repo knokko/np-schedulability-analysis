@@ -2,19 +2,47 @@
 #define RATING_GRAPH_H
 #include <ranges>
 #include <vector>
+#include <sys/resource.h>
 
 #include "agent.hpp"
 #include "attachment.hpp"
 #include "rating_graph_cut.hpp"
 
 namespace NP::Reconfiguration {
+
+	struct Analysis_result {
+		bool schedulable;
+		bool timeout;
+		unsigned long long number_of_nodes, number_of_states, number_of_edges, max_width, number_of_jobs;
+		double cpu_time;
+		std::string graph;
+		std::string response_times_csv;
+	};
+	const uint64_t RATING_EDGE_DESTINATION_MASK = ((static_cast<uint64_t>(1) << 40) - 1);
+	const uint64_t RATING_EDGE_JOB_MASK = ((1 << 24) - 1);
+
 	struct Rating_edge {
-		const int destination_node_index;
-		const Job_index taken_job;
+		const uint64_t raw;
+
+		Rating_edge(size_t destination_node_index, size_t taken_job) : raw(
+			static_cast<uint64_t>(destination_node_index) | (static_cast<uint64_t>(taken_job) << 40)
+		) {
+			if (destination_node_index < 0 || taken_job < 0) throw std::invalid_argument("negative");
+			if (destination_node_index != (destination_node_index & RATING_EDGE_DESTINATION_MASK)) throw std::invalid_argument("destination node");
+			if (taken_job != (taken_job & RATING_EDGE_JOB_MASK)) throw std::invalid_argument("taken job");
+		}
+
+		size_t get_destination_node_index() const {
+			return static_cast<size_t>(raw & RATING_EDGE_DESTINATION_MASK);
+		}
+
+		size_t get_taken_job() const {
+			return static_cast<size_t>((raw >> 40) & RATING_EDGE_JOB_MASK);
+		}
 
 		void print() const {
-			std::cout << "  destination_node_index = " << destination_node_index << " with job index " << taken_job << std::endl;
-		}
+			std::cout << "  destination_node_index = " << get_destination_node_index() << " with job index " << get_taken_job() << std::endl;
+		} // TODO Measure performance
 	};
 
 	struct Rating_node {
@@ -30,6 +58,7 @@ namespace NP::Reconfiguration {
 	class Rating_graph {
 	public:
 		std::vector<Rating_node> nodes;
+		std::vector<Rating_edge> edges;
 
 		Rating_graph() {
 			nodes.push_back(Rating_node {});
@@ -40,9 +69,9 @@ namespace NP::Reconfiguration {
 			if (will_miss_deadline(parent_index, taken_job)) return parent_index;
 
 			int child_index = nodes.size();
-			nodes[parent_index].edges.push_back(Rating_edge { .destination_node_index=child_index, .taken_job=taken_job });
+			nodes[parent_index].edges.push_back(Rating_edge(child_index, taken_job));
 			nodes.push_back(Rating_node { });
-			nodes[child_index].edges.push_back(Rating_edge { .destination_node_index=parent_index, .taken_job=taken_job });
+			nodes[child_index].edges.push_back(Rating_edge(parent_index, taken_job));
 			return child_index;
 		}
 
@@ -51,8 +80,8 @@ namespace NP::Reconfiguration {
 			assert(child_index >= 0 && child_index < nodes.size());
 			assert(taken_job >= 0);
 			assert(parent_index < child_index);
-			nodes[parent_index].edges.push_back(Rating_edge { .destination_node_index=child_index, .taken_job=taken_job });
-			nodes[child_index].edges.push_back(Rating_edge { .destination_node_index=parent_index, .taken_job=taken_job });
+			nodes[parent_index].edges.push_back(Rating_edge(child_index, taken_job));
+			nodes[child_index].edges.push_back(Rating_edge(parent_index, taken_job));
 		}
 
 		void set_missed_deadline(int node_index) {
@@ -62,25 +91,29 @@ namespace NP::Reconfiguration {
 		}
 
 		void mark_as_leaf_node(int node_index) {
+			std::cout << "mark node " << node_index << " as leaf node\n";
 			assert(node_index >= 0 && node_index < nodes.size());
 			if (nodes[node_index].rating == -1.0f) return;
 
+			// TODO How can a leaf node possibly have children?
 			bool has_children = false;
 			for (const auto &edge : nodes[node_index].edges) {
-				if (edge.destination_node_index > node_index) {
-					nodes[edge.destination_node_index].rating = 1.0f;
+				if (edge.get_destination_node_index() > node_index) {
+					//nodes[edge.get_destination_node_index()].rating = 1.0f;
 					has_children = true;
 				}
 			}
+			assert(!has_children);
 
-			if (!has_children) nodes[node_index].rating = 1.0f;
+			//if (!has_children) 
+			nodes[node_index].rating = 1.0f;
 		}
 
 		bool will_miss_deadline(int parent_index, Job_index candidate_job) const {
 			assert(parent_index >= 0 && parent_index < nodes.size());
 			if (nodes[parent_index].rating == -1.0f) return true;
 			for (const auto &edge : nodes[parent_index].edges) {
-				if (edge.taken_job == candidate_job && nodes[edge.destination_node_index].rating == -1.0f) return true;
+				if (edge.get_taken_job() == candidate_job && nodes[edge.get_destination_node_index()].rating == -1.0f) return true;
 			}
 			return false;
 		}
@@ -95,8 +128,8 @@ namespace NP::Reconfiguration {
 
 				int num_children = 0;
 				for (const auto &edge : node.edges) {
-					if (edge.destination_node_index > index) {
-						node.rating += nodes[edge.destination_node_index].rating;
+					if (edge.get_destination_node_index() > index) {
+						node.rating += nodes[edge.get_destination_node_index()].rating;
 						num_children += 1;
 					}
 				}
@@ -139,26 +172,26 @@ namespace NP::Reconfiguration {
 				fprintf(file, "];\n");
 				if (should_visit_nodes[index] == 1) continue;
 				for (const auto &edge : nodes[index].edges) {
-					if (edge.destination_node_index < index) continue;
-					should_visit_nodes[edge.destination_node_index] = nodes[edge.destination_node_index].rating == 1.0f ? 1 : 2;
-					const auto job = problem.jobs[edge.taken_job].get_id();
+					if (edge.get_destination_node_index() < index) continue;
+					should_visit_nodes[edge.get_destination_node_index()] = nodes[edge.get_destination_node_index()].rating == 1.0f ? 1 : 2;
+					const auto job = problem.jobs[edge.get_taken_job()].get_id();
 					fprintf(
-							file, "\tnode%u -> node%u [label=\"T%uJ%u (%zu)\"",
-							index, edge.destination_node_index, job.task, job.job, edge.taken_job
+							file, "\tnode%u -> node%lu [label=\"T%luJ%lu (%zu)\"",
+							index, edge.get_destination_node_index(), job.task, job.job, edge.get_taken_job()
 					);
 
 					for (int cut_index = 0; cut_index < cuts.size(); cut_index++) {
 						int mapped_source_node = subgraph_node_mapping[cut_index][index];
 						if (mapped_source_node < 0) continue;
 						int mapped_destination_node = cuts[cut_index].previous_jobs->can_take_job(
-								mapped_source_node, edge.taken_job
+								mapped_source_node, edge.get_taken_job()
 						);
-						subgraph_node_mapping[cut_index][edge.destination_node_index] = mapped_destination_node;
+						subgraph_node_mapping[cut_index][edge.get_destination_node_index()] = mapped_destination_node;
 						if (!cuts[cut_index].previous_jobs->is_leaf(mapped_source_node)) continue;
 
 						bool is_forbidden = false;
 						for (const auto forbidden_job : cuts[cut_index].forbidden_jobs) {
-							if (edge.taken_job == forbidden_job) {
+							if (edge.get_taken_job() == forbidden_job) {
 								is_forbidden = true;
 								break;
 							}
@@ -189,6 +222,8 @@ namespace NP::Reconfiguration {
 
 	public:
 		static void generate(const Scheduling_problem<Time> &problem, Rating_graph &rating_graph) {
+			
+
 			Agent_rating_graph agent;
 			agent.rating_graph = &rating_graph;
 
@@ -196,8 +231,39 @@ namespace NP::Reconfiguration {
 			test_options.early_exit = false;
 			test_options.use_supernodes = false;
 
-			Global::State_space<Time>::explore(problem, test_options, &agent);
+			auto space = Global::State_space<Time>::explore(problem, test_options, &agent);
 			rating_graph.compute_ratings();
+			Analysis_result result = Analysis_result{
+				space->is_schedulable(),
+				space->was_timed_out(),
+				space->number_of_nodes(),
+				space->number_of_states(),
+				space->number_of_edges(),
+				space->max_exploration_front_width(),
+				(unsigned long)(problem.jobs.size()),
+				space->get_cpu_time(),
+				"",
+				""
+			};
+			delete space;
+			struct rusage u;
+			long mem_used = 0;
+
+			std::cout << "node size is " << sizeof(Rating_node) << " and edge size is " << sizeof(Rating_edge) << std::endl;
+			std::cout << "so estimated size is " << result.number_of_nodes * sizeof(Rating_node) << " and " << result.number_of_edges * sizeof(Rating_edge) << std::endl;
+			if (getrusage(RUSAGE_SELF, &u) == 0)
+				mem_used = u.ru_maxrss;
+			std::cout << ",  " << result.number_of_jobs
+			  << ",  " << result.number_of_nodes
+		          << ",  " << result.number_of_states
+		          << ",  " << result.number_of_edges
+		          << ",  " << result.max_width
+		          << ",  " << std::fixed << result.cpu_time
+		          << ",  " << ((double) mem_used) / (1024.0)
+		          << ",  " << (int) result.timeout
+
+		          << std::endl;
+			
 		}
 
 		Attachment* create_initial_node_attachment() override {
@@ -233,7 +299,7 @@ namespace NP::Reconfiguration {
 			//std::cout << "missed deadline of job " << late_job.get_job_index() << " at index " << attachment->index << std::endl;
 		}
 
-		void encountered_leaf_node(const Global::Schedule_node<Time> &node) override {
+		void mark_as_leaf_node(const Global::Schedule_node<Time> &node) override {
 			const auto attachment = dynamic_cast<Attachment_rating_node*>(node.attachment);
 			assert(attachment);
 			rating_graph->mark_as_leaf_node(attachment->index);

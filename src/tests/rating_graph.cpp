@@ -12,10 +12,10 @@
 
 using namespace NP;
 
-int get_edge_destination(Reconfiguration::Rating_graph &rating_graph, int node_index, Job_index taken_job) {
+size_t get_edge_destination(Reconfiguration::Rating_graph &rating_graph, int node_index, Job_index taken_job) {
 	const auto node = rating_graph.nodes[node_index];
 	for (const auto &edge : node.edges) {
-		if (edge.taken_job == taken_job) return edge.destination_node_index;
+		if (edge.get_taken_job() == taken_job) return edge.get_destination_node_index();
 	}
 	REQUIRE(false);
 	return 0;
@@ -81,8 +81,8 @@ TEST_CASE("Rating graph + cutter") {
 		if (index != rating_graph.nodes.size() - 1) {
 			REQUIRE(rating_graph.nodes[index].edges.size() == 2);
 			for (const auto &edge : rating_graph.nodes[index].edges) {
-				if (index > 5 && edge.destination_node_index < index) CHECK(edge.destination_node_index == index - 1);
-				if (edge.destination_node_index > index) CHECK(edge.destination_node_index == index + 1);
+				if (index > 5 && edge.get_destination_node_index() < index) CHECK(edge.get_destination_node_index() == index - 1);
+				if (edge.get_destination_node_index() > index) CHECK(edge.get_destination_node_index() == index + 1);
 			}
 		} else {
 			REQUIRE(rating_graph.nodes[index].edges.size() == 1);

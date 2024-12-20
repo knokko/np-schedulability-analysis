@@ -22,5 +22,7 @@ TEST_CASE("First released job is not ready") {
 	test_options.early_exit = false;
 	test_options.use_supernodes = false;
 
-	CHECK(Global::State_space<dtime_t>::explore(problem, test_options)->is_schedulable());
+	auto space = Global::State_space<dtime_t>::explore(problem, test_options);
+	CHECK(space->is_schedulable());
+	delete space;
 }

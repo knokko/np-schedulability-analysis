@@ -77,6 +77,12 @@ const std::string jobs21 =
 
 using namespace NP;
 
+TEST_CASE("temp stuff") {
+	// TODO Move to rating graph tests, and also check constructor correctness
+	CHECK(sizeof(Reconfiguration::Rating_edge) == 8);
+	CHECK(sizeof(Reconfiguration::Rating_node) == 12);
+}
+
 TEST_CASE("Graph strategy on a really nasty graph") {
 	auto in = std::istringstream(jobs21);
 	auto jobs = NP::parse_csv_job_file<dtime_t>(in);

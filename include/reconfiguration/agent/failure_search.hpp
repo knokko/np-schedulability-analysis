@@ -27,7 +27,7 @@ namespace NP::Reconfiguration {
 		static std::vector<Job_sequence> find_all_failures(Scheduling_problem<Time> &problem, Analysis_options &test_options) {
 			Agent_failure_search agent;
 			while (agent.did_update_failures) {
-				Global::State_space<Time>::explore(
+				delete Global::State_space<Time>::explore(
 						problem, test_options, &agent
 				);
 			}

@@ -696,6 +696,7 @@ namespace NP {
 			{
 				for (State* s : states)
 					delete s;
+				if (attachment) delete attachment;
 			}
 
 			const unsigned int number_of_scheduled_jobs() const

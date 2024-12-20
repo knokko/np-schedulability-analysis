@@ -27,8 +27,9 @@ namespace NP::Reconfiguration {
 		has_visited.reserve(graph.nodes.size());
 		for (int counter = 0; counter < graph.nodes.size(); counter++) has_visited.push_back(false);
 
+		// TODO Also make this more compact
 		struct Node {
-			const int index;
+			const size_t index;
 			int next_edge_index;
 			float largest_child_rating;
 		};
@@ -38,7 +39,7 @@ namespace NP::Reconfiguration {
 			branch.push_back(Node { .index=0 });
 		} else {
 			std::vector<Job_index> possible_jobs;
-			for (const auto &edge : graph.nodes[0].edges) possible_jobs.push_back(edge.taken_job);
+			for (const auto &edge : graph.nodes[0].edges) possible_jobs.push_back(edge.get_taken_job());
 			cut_builders.push_back(Cut_builder { .node_index=0, .forbidden_jobs=possible_jobs });
 		}
 
@@ -58,9 +59,9 @@ namespace NP::Reconfiguration {
 
 			if (edge_index == 0) {
 				for (const auto &edge : node.edges) {
-					if (edge.destination_node_index > node_index) {
+					if (edge.get_destination_node_index() > node_index) {
 						branch[branch_index].largest_child_rating = std::max(
-								branch[branch_index].largest_child_rating, graph.nodes[edge.destination_node_index].rating
+								branch[branch_index].largest_child_rating, graph.nodes[edge.get_destination_node_index()].rating
 						);
 					}
 				}
@@ -68,26 +69,26 @@ namespace NP::Reconfiguration {
 
 			branch[branch_index].next_edge_index += 1;
 			auto current_edge = node.edges[edge_index];
-			auto destination = graph.nodes[current_edge.destination_node_index];
-			if (destination.rating == 1.0f || current_edge.destination_node_index < node_index) continue; // TODO Check if edge is already cut by a similar node in previous iterations
+			auto destination = graph.nodes[current_edge.get_destination_node_index()];
+			if (destination.rating == 1.0f || current_edge.get_destination_node_index() < node_index) continue; // TODO Check if edge is already cut by a similar node in previous iterations
 
 			if (destination.rating < branch[branch_index].largest_child_rating) {
 				bool add_new = true;
 				for (auto &cut : cut_builders) {
 					if (cut.node_index == node_index) {
 						add_new = false;
-						cut.forbidden_jobs.push_back(current_edge.taken_job);
+						cut.forbidden_jobs.push_back(current_edge.get_taken_job());
 					}
 				}
 
 				if (add_new) {
 					cut_builders.push_back(Cut_builder { .node_index = node_index });
-					cut_builders[cut_builders.size() - 1].forbidden_jobs.push_back(current_edge.taken_job);
+					cut_builders[cut_builders.size() - 1].forbidden_jobs.push_back(current_edge.get_taken_job());
 				}
 				continue;
 			}
 
-			branch.push_back(Node { .index=current_edge.destination_node_index });
+			branch.push_back(Node { .index=current_edge.get_destination_node_index() });
 		}
 
 		std::vector<Rating_graph_cut> cuts;
@@ -112,17 +113,17 @@ namespace NP::Reconfiguration {
 				assert(mapped_current_node >= 0);
 
 				for (const auto &edge : graph.nodes[current_node].edges) {
-					if (edge.destination_node_index < current_node) {
-						int destination_node = sub_graph_mapping[edge.destination_node_index];
+					if (edge.get_destination_node_index() < current_node) {
+						int destination_node = sub_graph_mapping[edge.get_destination_node_index()];
 						if (destination_node >= 0) {
 							previous_jobs.add_edge_between_existing_nodes(
-									mapped_current_node, destination_node, edge.taken_job
+									mapped_current_node, destination_node, edge.get_taken_job()
 							);
 						} else {
-							destination_node = previous_jobs.add_edge_to_new_node(mapped_current_node, edge.taken_job);
+							destination_node = previous_jobs.add_edge_to_new_node(mapped_current_node, edge.get_taken_job());
 							assert(destination_node > 0);
-							sub_graph_mapping[edge.destination_node_index] = destination_node;
-							nodes_to_visit.push_back(edge.destination_node_index);
+							sub_graph_mapping[edge.get_destination_node_index()] = destination_node;
+							nodes_to_visit.push_back(edge.get_destination_node_index());
 						}
 					}
 				}
@@ -130,16 +131,16 @@ namespace NP::Reconfiguration {
 
 			std::vector<Job_index> allowed_jobs;
 			for (const auto &edge : graph.nodes[builder.node_index].edges) {
-				if (edge.destination_node_index > builder.node_index) {
+				if (edge.get_destination_node_index() > builder.node_index) {
 					bool is_forbidden = false;
 					for (const auto forbidden_job : builder.forbidden_jobs) {
-						if (edge.taken_job == forbidden_job) {
+						if (edge.get_taken_job() == forbidden_job) {
 							is_forbidden = true;
 							break;
 						}
 					}
 
-					if (!is_forbidden) allowed_jobs.push_back(edge.taken_job);
+					if (!is_forbidden) allowed_jobs.push_back(edge.get_taken_job());
 				}
 			}
 			cuts.push_back(Rating_graph_cut {

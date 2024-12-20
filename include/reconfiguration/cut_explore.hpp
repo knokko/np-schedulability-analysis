@@ -56,7 +56,7 @@ namespace NP::Reconfiguration {
 
 			while (true) {
 				std::cout << "Start exploration\n";
-				Global::State_space<Time>::explore(problem, test_options, &agent);
+				delete Global::State_space<Time>::explore(problem, test_options, &agent);
 				if (agent.new_bad_jobs.empty()) return;
 
 				for (const auto good_job : agent.new_good_jobs) cut->extra_allowed_jobs.push_back(good_job);
@@ -92,7 +92,7 @@ namespace NP::Reconfiguration {
 
 				new_attachment->node_index = CUT_EXPLORE_NODE_INDEX_CONTINUED;
 				new_attachment->taken_job = next_job.get_job_index();
-				std::cout << "Discovered extra job " << next_job << std::endl;
+				//std::cout << "Discovered extra job " << next_job << std::endl;
 				new_good_jobs.push_back(new_attachment->taken_job);
 			} else {
 				assert(!parent_attachment->has_failed);

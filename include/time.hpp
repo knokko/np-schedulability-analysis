@@ -40,7 +40,7 @@ namespace Time_model {
 	{
 		static constexpr dense_t infinity()
 		{
-			return std::numeric_limits<dense_t>::infinity();
+			return std::numeric_limits<dense_t>::infinity() / 2;
 		}
 
 		static constexpr dense_t epsilon()

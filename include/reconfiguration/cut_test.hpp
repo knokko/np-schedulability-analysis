@@ -32,8 +32,10 @@ namespace NP::Reconfiguration {
 			test_options.early_exit = true;
 			test_options.use_supernodes = false;
 
+			auto space = Global::State_space<Time>::explore(problem, test_options, &agent);
 			Cut_test_result result;
-			result.has_unexpected_failures = !Global::State_space<Time>::explore(problem, test_options, &agent)->is_schedulable();
+			result.has_unexpected_failures = !space->is_schedulable();
+			delete space;
 			for (int index = 0; index < remaining_cuts.size(); index++) {
 				if (!agent.did_intervene[index]) result.fixed_cut_indices.push_back(index);
 			}

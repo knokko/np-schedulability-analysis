@@ -26,7 +26,7 @@ namespace NP::Reconfiguration {
 			test_options.early_exit = true;
 			test_options.use_supernodes = false;
 
-			Global::State_space<Time>::explore(problem, test_options, &agent);
+			delete Global::State_space<Time>::explore(problem, test_options, &agent);
 			if (agent.did_take_cut_edge) return 1;
 			if (agent.has_unexpected_failure) return 2;
 			return 0;
