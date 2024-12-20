@@ -97,8 +97,6 @@ TEST_CASE("Rating graph + cutter") {
 		}
 	}
 
-	// TODO
-	REQUIRE(false);
 	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
 	REQUIRE(cuts.size() == 1);
 	auto cut = cuts[0];
@@ -167,7 +165,7 @@ TEST_CASE("Rating graph sanity 1") {
 	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
 	rating_graph.generate_dot_file("test_rating_graph_sanity1_early.dot", problem, std::vector<Reconfiguration::Rating_graph_cut>());
 	REQUIRE(rating_graph.nodes[0].rating == 1.0);
-	// TODO REQUIRE(rating_graph.nodes[0].edges.size() == 1);
+	REQUIRE(get_number_of_edges(rating_graph, 0) == 1);
 
 	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
 	rating_graph.generate_dot_file("test_rating_graph_sanity1_late.dot", problem, cuts);

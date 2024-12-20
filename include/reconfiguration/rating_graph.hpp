@@ -41,7 +41,7 @@ namespace NP::Reconfiguration {
 		}), raw_taken_job_index({
 			_extract(taken_job_index, 0), _extract(taken_job_index, 8), _extract(taken_job_index, 16)
 		}) {
-			assert(parent_node_index >= 0 && child_node_index > parent_node_index && taken_job_index >= 0);
+			assert(parent_node_index >= 0 && child_node_index >= parent_node_index && taken_job_index >= 0);
 			assert(parent_node_index < (static_cast<uint64_t>(1) << 40));
 			assert((child_node_index - parent_node_index) < (static_cast<uint64_t>(1) << 32));
 			assert(taken_job_index < (1 << 24));
@@ -84,7 +84,7 @@ namespace NP::Reconfiguration {
 			nodes.push_back(Rating_node {});
 		}
 
-		int add_node(size_t parent_index, Job_index taken_job) {
+		size_t add_node(size_t parent_index, Job_index taken_job) {
 			assert(taken_job >= 0);
 			if (nodes[parent_index].rating == -1.0f) return parent_index;
 
@@ -94,7 +94,7 @@ namespace NP::Reconfiguration {
 			return child_index;
 		}
 
-		void insert_edge(int parent_index, int child_index, Job_index taken_job) {
+		void insert_edge(size_t parent_index, size_t child_index, Job_index taken_job) {
 			assert(parent_index >= 0 && parent_index < nodes.size());
 			assert(child_index >= 0 && child_index < nodes.size());
 			assert(taken_job >= 0);
@@ -102,14 +102,14 @@ namespace NP::Reconfiguration {
 			edges.push_back(Rating_edge(parent_index, child_index, taken_job));
 		}
 
-		void set_missed_deadline(int node_index) {
+		void set_missed_deadline(size_t node_index) {
 			assert(node_index >= 0);
 			assert(node_index < nodes.size());
-			std::cout << "missed deadline of " << node_index << std::endl;
+			std::cout << "missed deadline at node " << node_index << std::endl;
 			nodes[node_index].rating = -1.0f;
 		}
 
-		void mark_as_leaf_node(int node_index) {
+		void mark_as_leaf_node(size_t node_index) {
 			std::cout << "mark node " << node_index << " as leaf node\n";
 			assert(node_index >= 0 && node_index < nodes.size());
 			if (nodes[node_index].rating == -1.0f) return;
@@ -120,25 +120,28 @@ namespace NP::Reconfiguration {
 			std::sort(edges.begin(), edges.end(), [](const Rating_edge &a, const Rating_edge &b) {
 				return a.get_parent_node_index() < b.get_parent_node_index();
 			});
-			// TODO remove after testing
-			assert(edges[0].get_parent_node_index() < edges[edges.size() - 1].get_parent_node_index());
 
 			size_t edge_index = edges.size() - 1;
-			for (int node_index = nodes.size() - 1; node_index >= 0; node_index--) {
+			for (size_t node_index = nodes.size() - 1; node_index < nodes.size(); node_index--) {
 				auto &node = nodes[node_index];
 				if (node.rating == -1.0f) {
 					node.rating = 0.0f;
 					continue;
 				}
 
-				int num_children = 0;
-				while (edge_index >= 0 && edges[edge_index].get_parent_node_index() == node_index) {
+				while (edge_index < edges.size() && edges[edge_index].get_parent_node_index() > node_index) edge_index -= 1;
+
+				size_t num_children = 0;
+				while (edge_index < edges.size() && edges[edge_index].get_parent_node_index() == node_index) {
 					node.rating += nodes[edges[edge_index].get_child_node_index()].rating;
 					num_children += 1;
 					edge_index -= 1;
 				}
 				if (num_children > 1) node.rating /= num_children;
 			}
+
+			std::cout << "edge index is " << edge_index << " and there are " << edges.size() << " edges\n";
+			assert(edge_index == -1);
 		}
 
 		template<class Time> void generate_dot_file(
@@ -152,64 +155,70 @@ namespace NP::Reconfiguration {
 				return;
 			}
 
-			std::vector<std::vector<int>> subgraph_node_mapping;
+			std::vector<std::vector<size_t>> subgraph_node_mapping;
 			subgraph_node_mapping.reserve(cuts.size());
-			for (int cut_index = 0; cut_index < cuts.size(); cut_index++) {
+			for (size_t cut_index = 0; cut_index < cuts.size(); cut_index++) {
 				subgraph_node_mapping.emplace_back();
 				auto &last = subgraph_node_mapping[subgraph_node_mapping.size() - 1];
 				last.reserve(nodes.size());
 				last.push_back(0);
-				for (int node_index = 1; node_index < nodes.size(); node_index++) last.push_back(-2);
+				for (size_t node_index = 1; node_index < nodes.size(); node_index++) last.push_back(-2);
 			}
 
-			std::vector<int> should_visit_nodes;
+			std::sort(edges.begin(), edges.end(), [](const Rating_edge &a, const Rating_edge &b) {
+				return a.get_parent_node_index() < b.get_parent_node_index();
+			});
+
+			std::vector<size_t> should_visit_nodes;
 			should_visit_nodes.push_back(2);
-			for (int counter = 1; counter < nodes.size(); counter++) should_visit_nodes.push_back(0);
+			for (size_t counter = 1; counter < nodes.size(); counter++) should_visit_nodes.push_back(0);
 
 			fprintf(file, "strict digraph Rating {\n");
 
-			for (int index = 0; index < nodes.size(); index++) {
-				if (should_visit_nodes[index] == 0) continue;
-				fprintf(file, "\tnode%u [label=%.2f", index, nodes[index].rating);
-				if (nodes[index].rating == 0.0f) fprintf(file, ", color=red");
-				if (nodes[index].rating == 1.0f) fprintf(file, ", color=green");
+			size_t edge_index = 0;
+			for (size_t node_index = 0; node_index < nodes.size(); node_index++) {
+				if (should_visit_nodes[node_index] == 0) continue;
+				fprintf(file, "\tnode%lu [label=%.2f", node_index, nodes[node_index].rating);
+				if (nodes[node_index].rating == 0.0f) fprintf(file, ", color=red");
+				if (nodes[node_index].rating == 1.0f) fprintf(file, ", color=green");
 				fprintf(file, "];\n");
-				if (should_visit_nodes[index] == 1) continue;
-				// TODO
-				// for (const auto &edge : nodes[index].edges) {
-				// 	if (edge.get_destination_node_index() < index) continue;
-				// 	should_visit_nodes[edge.get_destination_node_index()] = nodes[edge.get_destination_node_index()].rating == 1.0f ? 1 : 2;
-				// 	const auto job = problem.jobs[edge.get_taken_job()].get_id();
-				// 	fprintf(
-				// 			file, "\tnode%u -> node%lu [label=\"T%luJ%lu (%zu)\"",
-				// 			index, edge.get_destination_node_index(), job.task, job.job, edge.get_taken_job()
-				// 	);
+				if (should_visit_nodes[node_index] == 1) continue;
 
-				// 	for (int cut_index = 0; cut_index < cuts.size(); cut_index++) {
-				// 		int mapped_source_node = subgraph_node_mapping[cut_index][index];
-				// 		if (mapped_source_node < 0) continue;
-				// 		int mapped_destination_node = cuts[cut_index].previous_jobs->can_take_job(
-				// 				mapped_source_node, edge.get_taken_job()
-				// 		);
-				// 		subgraph_node_mapping[cut_index][edge.get_destination_node_index()] = mapped_destination_node;
-				// 		if (!cuts[cut_index].previous_jobs->is_leaf(mapped_source_node)) continue;
+				while (edge_index < edges.size() && edges[edge_index].get_parent_node_index() == node_index) {
+					size_t destination_node_index = edges[edge_index].get_child_node_index();
+					should_visit_nodes[destination_node_index] = nodes[destination_node_index].rating == 1.0f ? 1 : 2;
+					const auto job = problem.jobs[edges[edge_index].get_taken_job_index()].get_id();
+					fprintf(
+							file, "\tnode%lu -> node%lu [label=\"T%luJ%lu (%zu)\"",
+							node_index, destination_node_index, job.task, job.job, edges[edge_index].get_taken_job_index()
+					);
 
-				// 		bool is_forbidden = false;
-				// 		for (const auto forbidden_job : cuts[cut_index].forbidden_jobs) {
-				// 			if (edge.get_taken_job() == forbidden_job) {
-				// 				is_forbidden = true;
-				// 				break;
-				// 			}
-				// 		}
+					for (size_t cut_index = 0; cut_index < cuts.size(); cut_index++) {
+						size_t mapped_source_node = subgraph_node_mapping[cut_index][node_index];
+						if (mapped_source_node >= nodes.size()) continue;
+						size_t mapped_destination_node = cuts[cut_index].previous_jobs->can_take_job(
+								mapped_source_node, edges[edge_index].get_taken_job_index()
+						);
+						subgraph_node_mapping[cut_index][destination_node_index] = mapped_destination_node;
+						if (!cuts[cut_index].previous_jobs->is_leaf(mapped_source_node)) continue;
 
-				// 		if (is_forbidden) {
-				// 			fprintf(file, ", color=red");
-				// 			break;
-				// 		}
-				// 	}
+						bool is_forbidden = false;
+						for (const auto forbidden_job : cuts[cut_index].forbidden_jobs) {
+							if (edges[edge_index].get_taken_job_index() == forbidden_job) {
+								is_forbidden = true;
+								break;
+							}
+						}
 
-				// 	fprintf(file, "];\n");
-				// }
+						if (is_forbidden) {
+							fprintf(file, ", color=red");
+							break;
+						}
+					}
+
+					fprintf(file, "];\n");
+					edge_index += 1;
+				}
 			}
 
 			fprintf(file, "}\n");
@@ -219,7 +228,7 @@ namespace NP::Reconfiguration {
 	};
 
 	struct Attachment_rating_node final: Attachment {
-		int index = 0;
+		size_t index = 0;
 	};
 
 	template<class Time> class Agent_rating_graph : public Agent<Time> {
@@ -228,7 +237,6 @@ namespace NP::Reconfiguration {
 	public:
 		static void generate(const Scheduling_problem<Time> &problem, Rating_graph &rating_graph) {
 			
-
 			Agent_rating_graph agent;
 			agent.rating_graph = &rating_graph;
 

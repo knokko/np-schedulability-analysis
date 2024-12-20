@@ -7,7 +7,7 @@
 
 namespace NP::Reconfiguration {
 	struct Sub_graph_edge {
-		int child_node_index;
+		size_t child_node_index;
 		Job_index taken_job;
 	};
 
@@ -22,7 +22,7 @@ namespace NP::Reconfiguration {
 			nodes.emplace_back();
 		}
 
-		int can_take_job(int start_node, Job_index job) {
+		size_t can_take_job(size_t start_node, Job_index job) {
 			assert(start_node >= 0 && start_node < nodes.size());
 
 			for (const auto &edge : this->nodes[start_node].edges) {
@@ -32,9 +32,9 @@ namespace NP::Reconfiguration {
 			return -1;
 		}
 
-		int length() {
-			int current_length = 0;
-			int current_node_index = 0;
+		size_t length() {
+			size_t current_length = 0;
+			size_t current_node_index = 0;
 
 			while (!this->nodes[current_node_index].edges.empty()) {
 				current_node_index = this->nodes[current_node_index].edges[0].child_node_index;
@@ -44,25 +44,27 @@ namespace NP::Reconfiguration {
 			return current_length;
 		}
 
-		bool is_leaf(int node) {
+		bool is_leaf(size_t node) {
 			assert(node >= 0 && node < nodes.size());
 			return this->nodes[node].edges.empty();
 		}
 
-		int add_edge_to_new_node(int start_node, Job_index taken_job) {
+		size_t add_edge_to_new_node(size_t start_node, Job_index taken_job) {
 			assert(start_node >= 0 && start_node < nodes.size());
-			int end_node = nodes.size();
+			size_t end_node = nodes.size();
 			nodes.emplace_back();
 
 			nodes[start_node].edges.push_back(Sub_graph_edge {
 				.child_node_index = end_node,
 				.taken_job = taken_job
 			});
+			std::cout << "return end node " << end_node << std::endl;
 			return end_node;
 		}
 
-		void add_edge_between_existing_nodes(int start_node, int end_node, Job_index taken_job) {
+		void add_edge_between_existing_nodes(size_t start_node, size_t end_node, Job_index taken_job) {
 			assert(start_node >= 0 && start_node < nodes.size());
+			std::cout << "end node is " << end_node << " and there are " << nodes.size() << " nodes\n";
 			assert(end_node >= 0 && end_node < nodes.size());
 			nodes[start_node].edges.push_back(Sub_graph_edge {
 				.child_node_index = end_node,
@@ -73,9 +75,9 @@ namespace NP::Reconfiguration {
 		Sub_graph reversed() {
 			Sub_graph result;
 			result.nodes.reserve(this->nodes.size());
-			for (int counter = 1; counter < this->nodes.size(); counter++) result.nodes.emplace_back();
+			for (size_t counter = 1; counter < this->nodes.size(); counter++) result.nodes.emplace_back();
 
-			for (int own_node_index = 0; own_node_index < this->nodes.size(); own_node_index++) {
+			for (size_t own_node_index = 0; own_node_index < this->nodes.size(); own_node_index++) {
 				for (const auto &edge : this->nodes[own_node_index].edges) {
 					result.add_edge_between_existing_nodes(
 							this->nodes.size() - edge.child_node_index - 1,
