@@ -18,40 +18,60 @@ namespace NP::Reconfiguration {
 		std::string graph;
 		std::string response_times_csv;
 	};
-	const uint64_t RATING_EDGE_DESTINATION_MASK = ((static_cast<uint64_t>(1) << 40) - 1);
-	const uint64_t RATING_EDGE_JOB_MASK = ((1 << 24) - 1);
+
+	static uint8_t _extract(size_t value, int shift) {
+		return static_cast<uint8_t>(value >> shift);
+	}
+
+	static size_t _recover(uint8_t packed, int shift) {
+		return static_cast<size_t>(packed) << shift;
+	}
 
 	struct Rating_edge {
-		const uint64_t raw;
+		const std::array<uint8_t, 5> raw_parent_node_index;
+		const std::array<uint8_t, 4> raw_child_node_index_offset;
+		const std::array<uint8_t, 3> raw_taken_job_index;
 
-		Rating_edge(size_t destination_node_index, size_t taken_job) : raw(
-			static_cast<uint64_t>(destination_node_index) | (static_cast<uint64_t>(taken_job) << 40)
-		) {
-			if (destination_node_index < 0 || taken_job < 0) throw std::invalid_argument("negative");
-			if (destination_node_index != (destination_node_index & RATING_EDGE_DESTINATION_MASK)) throw std::invalid_argument("destination node");
-			if (taken_job != (taken_job & RATING_EDGE_JOB_MASK)) throw std::invalid_argument("taken job");
+		Rating_edge(size_t parent_node_index, size_t child_node_index, size_t taken_job_index) : raw_parent_node_index({
+			_extract(parent_node_index, 0), _extract(parent_node_index, 8), _extract(parent_node_index, 16),
+			_extract(parent_node_index, 24), _extract(parent_node_index, 32)
+		}), raw_child_node_index_offset({
+			_extract(child_node_index - parent_node_index, 0), _extract(child_node_index - parent_node_index, 8),
+			_extract(child_node_index - parent_node_index, 16), _extract(child_node_index - parent_node_index, 24)
+		}), raw_taken_job_index({
+			_extract(taken_job_index, 0), _extract(taken_job_index, 8), _extract(taken_job_index, 16)
+		}) {
+			assert(parent_node_index >= 0 && child_node_index > parent_node_index && taken_job_index >= 0);
+			assert(parent_node_index < (static_cast<uint64_t>(1) << 40));
+			assert((child_node_index - parent_node_index) < (static_cast<uint64_t>(1) << 32));
+			assert(taken_job_index < (1 << 24));
 		}
 
-		size_t get_destination_node_index() const {
-			return static_cast<size_t>(raw & RATING_EDGE_DESTINATION_MASK);
+		size_t get_parent_node_index() const {
+			return _recover(raw_parent_node_index[0], 0) | _recover(raw_parent_node_index[1], 8) | _recover(raw_parent_node_index[2], 16) |
+					_recover(raw_parent_node_index[3], 24) | _recover(raw_parent_node_index[4], 32);
 		}
 
-		size_t get_taken_job() const {
-			return static_cast<size_t>((raw >> 40) & RATING_EDGE_JOB_MASK);
+		size_t get_child_node_index() const {
+			size_t offset = _recover(raw_child_node_index_offset[0], 0) | _recover(raw_child_node_index_offset[1], 8) | 
+					_recover(raw_child_node_index_offset[2], 16) | _recover(raw_child_node_index_offset[3], 24);
+			return get_parent_node_index() + offset;
+		}
+
+		size_t get_taken_job_index() const {
+			return _recover(raw_taken_job_index[0], 0) | _recover(raw_taken_job_index[1], 8) | _recover(raw_taken_job_index[2], 16);
 		}
 
 		void print() const {
-			std::cout << "  destination_node_index = " << get_destination_node_index() << " with job index " << get_taken_job() << std::endl;
+			std::cout << "parent node = " << get_parent_node_index() << " and child node is " << get_child_node_index() << " with job " << get_taken_job_index() << std::endl;
 		} // TODO Measure performance
 	};
 
 	struct Rating_node {
-		std::vector<Rating_edge> edges;
 		float rating;
 
 		void print() const {
-			std::cout << "rating = " << rating << " and edges are: " << std::endl;
-			for (const auto &edge : edges) edge.print();
+			std::cout << "rating = " << rating << std::endl;
 		}
 	};
 
@@ -64,14 +84,13 @@ namespace NP::Reconfiguration {
 			nodes.push_back(Rating_node {});
 		}
 
-		int add_node(int parent_index, Job_index taken_job) {
+		int add_node(size_t parent_index, Job_index taken_job) {
 			assert(taken_job >= 0);
 			if (nodes[parent_index].rating == -1.0f) return parent_index;
 
-			int child_index = nodes.size();
-			nodes[parent_index].edges.push_back(Rating_edge(child_index, taken_job));
+			size_t child_index = nodes.size();
 			nodes.push_back(Rating_node { });
-			nodes[child_index].edges.push_back(Rating_edge(parent_index, taken_job));
+			edges.push_back(Rating_edge(parent_index, child_index, taken_job));
 			return child_index;
 		}
 
@@ -80,8 +99,7 @@ namespace NP::Reconfiguration {
 			assert(child_index >= 0 && child_index < nodes.size());
 			assert(taken_job >= 0);
 			assert(parent_index < child_index);
-			nodes[parent_index].edges.push_back(Rating_edge(child_index, taken_job));
-			nodes[child_index].edges.push_back(Rating_edge(parent_index, taken_job));
+			edges.push_back(Rating_edge(parent_index, child_index, taken_job));
 		}
 
 		void set_missed_deadline(int node_index) {
@@ -107,12 +125,13 @@ namespace NP::Reconfiguration {
 				}
 
 				int num_children = 0;
-				for (const auto &edge : node.edges) {
-					if (edge.get_destination_node_index() > index) {
-						node.rating += nodes[edge.get_destination_node_index()].rating;
-						num_children += 1;
-					}
-				}
+				// TODO Iterate over edges
+				// for (const auto &edge : node.edges) {
+				// 	if (edge.get_destination_node_index() > index) {
+				// 		node.rating += nodes[edge.get_destination_node_index()].rating;
+				// 		num_children += 1;
+				// 	}
+				// }
 				if (num_children > 1) node.rating /= num_children;
 			}
 		}
@@ -151,40 +170,41 @@ namespace NP::Reconfiguration {
 				if (nodes[index].rating == 1.0f) fprintf(file, ", color=green");
 				fprintf(file, "];\n");
 				if (should_visit_nodes[index] == 1) continue;
-				for (const auto &edge : nodes[index].edges) {
-					if (edge.get_destination_node_index() < index) continue;
-					should_visit_nodes[edge.get_destination_node_index()] = nodes[edge.get_destination_node_index()].rating == 1.0f ? 1 : 2;
-					const auto job = problem.jobs[edge.get_taken_job()].get_id();
-					fprintf(
-							file, "\tnode%u -> node%lu [label=\"T%luJ%lu (%zu)\"",
-							index, edge.get_destination_node_index(), job.task, job.job, edge.get_taken_job()
-					);
+				// TODO
+				// for (const auto &edge : nodes[index].edges) {
+				// 	if (edge.get_destination_node_index() < index) continue;
+				// 	should_visit_nodes[edge.get_destination_node_index()] = nodes[edge.get_destination_node_index()].rating == 1.0f ? 1 : 2;
+				// 	const auto job = problem.jobs[edge.get_taken_job()].get_id();
+				// 	fprintf(
+				// 			file, "\tnode%u -> node%lu [label=\"T%luJ%lu (%zu)\"",
+				// 			index, edge.get_destination_node_index(), job.task, job.job, edge.get_taken_job()
+				// 	);
 
-					for (int cut_index = 0; cut_index < cuts.size(); cut_index++) {
-						int mapped_source_node = subgraph_node_mapping[cut_index][index];
-						if (mapped_source_node < 0) continue;
-						int mapped_destination_node = cuts[cut_index].previous_jobs->can_take_job(
-								mapped_source_node, edge.get_taken_job()
-						);
-						subgraph_node_mapping[cut_index][edge.get_destination_node_index()] = mapped_destination_node;
-						if (!cuts[cut_index].previous_jobs->is_leaf(mapped_source_node)) continue;
+				// 	for (int cut_index = 0; cut_index < cuts.size(); cut_index++) {
+				// 		int mapped_source_node = subgraph_node_mapping[cut_index][index];
+				// 		if (mapped_source_node < 0) continue;
+				// 		int mapped_destination_node = cuts[cut_index].previous_jobs->can_take_job(
+				// 				mapped_source_node, edge.get_taken_job()
+				// 		);
+				// 		subgraph_node_mapping[cut_index][edge.get_destination_node_index()] = mapped_destination_node;
+				// 		if (!cuts[cut_index].previous_jobs->is_leaf(mapped_source_node)) continue;
 
-						bool is_forbidden = false;
-						for (const auto forbidden_job : cuts[cut_index].forbidden_jobs) {
-							if (edge.get_taken_job() == forbidden_job) {
-								is_forbidden = true;
-								break;
-							}
-						}
+				// 		bool is_forbidden = false;
+				// 		for (const auto forbidden_job : cuts[cut_index].forbidden_jobs) {
+				// 			if (edge.get_taken_job() == forbidden_job) {
+				// 				is_forbidden = true;
+				// 				break;
+				// 			}
+				// 		}
 
-						if (is_forbidden) {
-							fprintf(file, ", color=red");
-							break;
-						}
-					}
+				// 		if (is_forbidden) {
+				// 			fprintf(file, ", color=red");
+				// 			break;
+				// 		}
+				// 	}
 
-					fprintf(file, "];\n");
-				}
+				// 	fprintf(file, "];\n");
+				// }
 			}
 
 			fprintf(file, "}\n");
