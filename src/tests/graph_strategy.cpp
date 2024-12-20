@@ -125,7 +125,7 @@ TEST_CASE("TODO handle rating of 0") {
 	Reconfiguration::Rating_graph rating_graph;
 	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
 	rating_graph.generate_dot_file("test_graph_strategy_rating0.dot", problem, std::vector<Reconfiguration::Rating_graph_cut>());
-	REQUIRE(rating_graph.nodes[0].rating == 0.0);
+	REQUIRE(rating_graph.nodes[0].get_rating() == 0.0);
 
 	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
 	rating_graph.generate_dot_file("test_graph_strategy_rating0.dot", problem, cuts);

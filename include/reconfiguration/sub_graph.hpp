@@ -58,13 +58,11 @@ namespace NP::Reconfiguration {
 				.child_node_index = end_node,
 				.taken_job = taken_job
 			});
-			std::cout << "return end node " << end_node << std::endl;
 			return end_node;
 		}
 
 		void add_edge_between_existing_nodes(size_t start_node, size_t end_node, Job_index taken_job) {
 			assert(start_node >= 0 && start_node < nodes.size());
-			std::cout << "end node is " << end_node << " and there are " << nodes.size() << " nodes\n";
 			assert(end_node >= 0 && end_node < nodes.size());
 			nodes[start_node].edges.push_back(Sub_graph_edge {
 				.child_node_index = end_node,

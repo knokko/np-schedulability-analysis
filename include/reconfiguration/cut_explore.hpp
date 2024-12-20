@@ -55,7 +55,6 @@ namespace NP::Reconfiguration {
 			test_options.use_supernodes = false;
 
 			while (true) {
-				std::cout << "Start exploration\n";
 				delete Global::State_space<Time>::explore(problem, test_options, &agent);
 				if (agent.new_bad_jobs.empty()) return;
 

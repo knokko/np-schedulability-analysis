@@ -85,7 +85,7 @@ TEST_CASE("temp stuff") {
 	};
 	// TODO Move to rating graph tests, and also check constructor correctness
 	CHECK(sizeof(Reconfiguration::Rating_edge) == 12);
-	CHECK(sizeof(Reconfiguration::Rating_node) == 4);
+	CHECK(sizeof(Reconfiguration::Rating_node) == 1);
 	CHECK(sizeof(Test) == 11);
 	REQUIRE(sizeof(size_t) == 8);
 
@@ -107,12 +107,17 @@ TEST_CASE("Graph strategy on a really nasty graph") {
 	const auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
 
 	Reconfiguration::Rating_graph rating_graph;
+	std::cout << "test1\n";
 	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
+	std::cout << "test2\n";
 
 	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
+	std::cout << "test3\n";
 	rating_graph.generate_dot_file("test_nasty_rating_graph_with_cuts.dot", problem, cuts);
+	std::cout << "test4\n";
 
 	const auto solutions = Reconfiguration::apply_graph_strategy<dtime_t>(problem);
+	std::cout << "test5\n";
 	for (const auto &solution : solutions) solution->print();
 	//REQUIRE(solutions.size() == 1); TODO Finish this
 }

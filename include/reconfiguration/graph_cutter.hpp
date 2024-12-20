@@ -40,7 +40,7 @@ namespace NP::Reconfiguration {
 		};
 
 		std::vector<Node> branch;
-		if (graph.nodes[0].rating > 0.0f) {
+		if (graph.nodes[0].get_rating() > 0.0f) {
 			branch.push_back(Node { });
 		} else {
 			std::vector<Job_index> possible_jobs;
@@ -59,8 +59,8 @@ namespace NP::Reconfiguration {
 
 			auto node = graph.nodes[node_index];
 
-			assert(node.rating > 0.0f);
-			if (node.rating == 1.0 || has_visited[node_index] || edge_index >= graph.edges.size() || graph.edges[edge_index].get_parent_node_index() != node_index) {
+			assert(node.get_rating() > 0.0f);
+			if (node.get_rating() == 1.0 || has_visited[node_index] || edge_index >= graph.edges.size() || graph.edges[edge_index].get_parent_node_index() != node_index) {
 				has_visited[node_index] = true;
 				branch.pop_back();
 				continue;
@@ -70,7 +70,7 @@ namespace NP::Reconfiguration {
 				size_t test_edge_index = edge_index;
 				while (test_edge_index < graph.edges.size() && graph.edges[test_edge_index].get_parent_node_index() == node_index) {
 					branch[branch_index].largest_child_rating = std::max(
-							branch[branch_index].largest_child_rating, graph.nodes[graph.edges[test_edge_index].get_child_node_index()].rating
+							branch[branch_index].largest_child_rating, graph.nodes[graph.edges[test_edge_index].get_child_node_index()].get_rating()
 					);
 					test_edge_index++;
 				}
@@ -79,9 +79,9 @@ namespace NP::Reconfiguration {
 			branch[branch_index].next_edge_index += 1;
 			auto current_edge = graph.edges[edge_index];
 			auto destination = graph.nodes[current_edge.get_child_node_index()];
-			if (destination.rating == 1.0f) continue; // Check if edge is already cut by a similar node in previous iterations
+			if (destination.get_rating() == 1.0f) continue; // Check if edge is already cut by a similar node in previous iterations
 
-			if (destination.rating < branch[branch_index].largest_child_rating) {
+			if (destination.get_rating() < branch[branch_index].largest_child_rating) {
 				bool add_new = true;
 				for (auto &cut : cut_builders) {
 					if (cut.node_index == node_index) {
@@ -96,7 +96,6 @@ namespace NP::Reconfiguration {
 						.forbidden_jobs=std::vector<size_t>{current_edge.get_taken_job_index()}
 					});
 				}
-				std::cout << "forbid job " << current_edge.get_taken_job_index() << std::endl;
 				continue;
 			}
 
@@ -142,7 +141,6 @@ namespace NP::Reconfiguration {
 				while (edge_index < graph.edges.size() && graph.edges[edge_index].get_child_node_index() == current_node) {
 					size_t original_parent_node = graph.edges[edge_index].get_parent_node_index();
 					size_t destination_node = sub_graph_mapping[original_parent_node];
-					std::cout << "original parent node is " << original_parent_node << " and mapped is " << destination_node << std::endl;
 					if (destination_node != -1) {
 						previous_jobs.add_edge_between_existing_nodes(
 								mapped_current_node, destination_node, graph.edges[edge_index].get_taken_job_index()
@@ -186,11 +184,9 @@ namespace NP::Reconfiguration {
 				}
 
 				if (!is_forbidden) cuts[index].allowed_jobs.push_back(taken_job);
-				std::cout << "is << " << taken_job << " forbidden? " << is_forbidden << std::endl;
 				edge_index += 1;
 			}
 		}
-		std::cout << "finished adding allowed jobs\n";
 
 		return cuts;
 	}

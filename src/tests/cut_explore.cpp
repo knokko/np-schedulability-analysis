@@ -24,17 +24,12 @@ TEST_CASE("cut_explorer: mini first job choice") {
 	auto problem = Scheduling_problem<dtime_t>(jobs, std::vector<Precedence_constraint<dtime_t>>());
 
 	Reconfiguration::Rating_graph rating_graph;
-	std::cout << "test1\n";
 	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
-	std::cout << "test2\n";
-	REQUIRE(rating_graph.nodes[0].rating > 0.0);
-	REQUIRE(rating_graph.nodes[0].rating < 1.0);
+	REQUIRE(rating_graph.nodes[0].get_rating() > 0.0);
+	REQUIRE(rating_graph.nodes[0].get_rating() < 1.0);
 
-	std::cout << "test3\n";
 	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
-	std::cout << "test4\n";
 	rating_graph.generate_dot_file("test_cut_explore_mini1.dot", problem, cuts);
-	std::cout << "test5\n";
 
 	REQUIRE(cuts.size() == 1);
 	auto &cut = cuts[0];
@@ -66,8 +61,8 @@ TEST_CASE("cut_explorer: small first job choice") {
 	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
 	std::cout << "finished rating graph\n";
 	rating_graph.generate_dot_file("test_cut_explore_mini2.dot", problem, std::vector<Reconfiguration::Rating_graph_cut>());
-	REQUIRE(rating_graph.nodes[0].rating > 0.0);
-	REQUIRE(rating_graph.nodes[0].rating < 1.0);
+	REQUIRE(rating_graph.nodes[0].get_rating() > 0.0);
+	REQUIRE(rating_graph.nodes[0].get_rating() < 1.0);
 
 	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
 	rating_graph.generate_dot_file("test_cut_explore_mini2_cut.dot", problem, cuts);
@@ -101,7 +96,7 @@ TEST_CASE("cut_explorer: explore first job choices") {
 
 	Reconfiguration::Rating_graph rating_graph;
 	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
-	REQUIRE(rating_graph.nodes[0].rating < 1.0);
+	REQUIRE(rating_graph.nodes[0].get_rating() < 1.0);
 
 	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
 	rating_graph.generate_dot_file("test_cut_explore1.dot", problem, cuts);
@@ -139,7 +134,7 @@ TEST_CASE("cut_explorer: explore first job choices complex") {
 
 	Reconfiguration::Rating_graph rating_graph;
 	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
-	REQUIRE(rating_graph.nodes[0].rating < 1.0);
+	REQUIRE(rating_graph.nodes[0].get_rating() < 1.0);
 
 	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
 	rating_graph.generate_dot_file("test_cut_explore1_complex.dot", problem, cuts);
@@ -180,7 +175,7 @@ TEST_CASE("cut_explorer: explore second job choices") {
 
 	Reconfiguration::Rating_graph rating_graph;
 	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
-	REQUIRE(rating_graph.nodes[0].rating < 1.0);
+	REQUIRE(rating_graph.nodes[0].get_rating() < 1.0);
 
 	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
 	rating_graph.generate_dot_file("test_cut_explore2.dot", problem, cuts);

@@ -68,10 +68,24 @@ namespace NP::Reconfiguration {
 	};
 
 	struct Rating_node {
-		float rating;
+		uint8_t raw_rating;
+
+		float get_rating() const {
+			if (raw_rating == 255) return -1.0f;
+			return static_cast<float>(raw_rating) / 250.0f;
+		}
+
+		void set_rating(float rating) {
+			if (rating == -1.0f) {
+				raw_rating = 255;
+				return;
+			}
+			assert(rating >= 0.0 && rating <= 1.0);
+			raw_rating = static_cast<uint8_t>(250.0f * rating + 0.5f);
+		}
 
 		void print() const {
-			std::cout << "rating = " << rating << std::endl;
+			std::cout << "rating = " << get_rating() << std::endl;
 		}
 	};
 
@@ -85,8 +99,9 @@ namespace NP::Reconfiguration {
 		}
 
 		size_t add_node(size_t parent_index, Job_index taken_job) {
+			std::cout << "add_node to parent " << parent_index << " for job " << taken_job << "\n";
 			assert(taken_job >= 0);
-			if (nodes[parent_index].rating == -1.0f) return parent_index;
+			if (nodes[parent_index].get_rating() == -1.0f) return parent_index;
 
 			size_t child_index = nodes.size();
 			nodes.push_back(Rating_node { });
@@ -95,6 +110,7 @@ namespace NP::Reconfiguration {
 		}
 
 		void insert_edge(size_t parent_index, size_t child_index, Job_index taken_job) {
+			std::cout << "insert_edge\n";
 			assert(parent_index >= 0 && parent_index < nodes.size());
 			assert(child_index >= 0 && child_index < nodes.size());
 			assert(taken_job >= 0);
@@ -103,44 +119,48 @@ namespace NP::Reconfiguration {
 		}
 
 		void set_missed_deadline(size_t node_index) {
+			std::cout << "missed deadline\n";
 			assert(node_index >= 0);
 			assert(node_index < nodes.size());
-			std::cout << "missed deadline at node " << node_index << std::endl;
-			nodes[node_index].rating = -1.0f;
+			nodes[node_index].set_rating(-1.0f);
 		}
 
 		void mark_as_leaf_node(size_t node_index) {
-			std::cout << "mark node " << node_index << " as leaf node\n";
 			assert(node_index >= 0 && node_index < nodes.size());
-			if (nodes[node_index].rating == -1.0f) return;
-			nodes[node_index].rating = 1.0f;
+			if (nodes[node_index].get_rating() == -1.0f) return;
+			nodes[node_index].set_rating(1.0f);
+			std::cout << "set leaf rating to " << nodes[node_index].get_rating() << " 1 of node " << node_index << "\n";
 		}
 
 		void compute_ratings() {
 			std::sort(edges.begin(), edges.end(), [](const Rating_edge &a, const Rating_edge &b) {
 				return a.get_parent_node_index() < b.get_parent_node_index();
 			});
+			std::cout << "there are " << edges.size() << " edges and " << nodes.size() << " nodes\n";
 
 			size_t edge_index = edges.size() - 1;
 			for (size_t node_index = nodes.size() - 1; node_index < nodes.size(); node_index--) {
 				auto &node = nodes[node_index];
-				if (node.rating == -1.0f) {
-					node.rating = 0.0f;
+				if (node.get_rating() == -1.0f) {
+					node.set_rating(0.0f);
+					std::cout << "set missed rating to 0\n";
 					continue;
 				}
 
 				while (edge_index < edges.size() && edges[edge_index].get_parent_node_index() > node_index) edge_index -= 1;
 
 				size_t num_children = 0;
+				float rating = node.get_rating();
 				while (edge_index < edges.size() && edges[edge_index].get_parent_node_index() == node_index) {
-					node.rating += nodes[edges[edge_index].get_child_node_index()].rating;
+					rating += nodes[edges[edge_index].get_child_node_index()].get_rating();
 					num_children += 1;
 					edge_index -= 1;
 				}
-				if (num_children > 1) node.rating /= num_children;
+				if (num_children > 1) rating /= num_children;
+				node.set_rating(rating);
+				std::cout << "set rating to " << node.get_rating() << " (" << rating << ") of node " << node_index << "\n";
 			}
 
-			std::cout << "edge index is " << edge_index << " and there are " << edges.size() << " edges\n";
 			assert(edge_index == -1);
 		}
 
@@ -178,15 +198,15 @@ namespace NP::Reconfiguration {
 			size_t edge_index = 0;
 			for (size_t node_index = 0; node_index < nodes.size(); node_index++) {
 				if (should_visit_nodes[node_index] == 0) continue;
-				fprintf(file, "\tnode%lu [label=%.2f", node_index, nodes[node_index].rating);
-				if (nodes[node_index].rating == 0.0f) fprintf(file, ", color=red");
-				if (nodes[node_index].rating == 1.0f) fprintf(file, ", color=green");
+				fprintf(file, "\tnode%lu [label=%.2f", node_index, nodes[node_index].get_rating());
+				if (nodes[node_index].get_rating() == 0.0f) fprintf(file, ", color=red");
+				if (nodes[node_index].get_rating() == 1.0f) fprintf(file, ", color=green");
 				fprintf(file, "];\n");
 				if (should_visit_nodes[node_index] == 1) continue;
 
 				while (edge_index < edges.size() && edges[edge_index].get_parent_node_index() == node_index) {
 					size_t destination_node_index = edges[edge_index].get_child_node_index();
-					should_visit_nodes[destination_node_index] = nodes[destination_node_index].rating == 1.0f ? 1 : 2;
+					should_visit_nodes[destination_node_index] = nodes[destination_node_index].get_rating() == 1.0f ? 1 : 2;
 					const auto job = problem.jobs[edges[edge_index].get_taken_job_index()].get_id();
 					fprintf(
 							file, "\tnode%lu -> node%lu [label=\"T%luJ%lu (%zu)\"",
@@ -262,8 +282,6 @@ namespace NP::Reconfiguration {
 			struct rusage u;
 			long mem_used = 0;
 
-			std::cout << "node size is " << sizeof(Rating_node) << " and edge size is " << sizeof(Rating_edge) << std::endl;
-			std::cout << "so estimated size is " << result.number_of_nodes * sizeof(Rating_node) << " and " << result.number_of_edges * sizeof(Rating_edge) << std::endl;
 			if (getrusage(RUSAGE_SELF, &u) == 0)
 				mem_used = u.ru_maxrss;
 			std::cout << ",  " << result.number_of_jobs
@@ -322,8 +340,8 @@ namespace NP::Reconfiguration {
 			const auto attachment = dynamic_cast<Attachment_rating_node*>(node.attachment);
 			assert(attachment);
 
-			bool result = rating_graph->nodes[attachment->index].rating != 1.0f;
-			assert(result);
+			bool result = rating_graph->nodes[attachment->index].get_rating() != -1.0f;
+			//assert(result);
 			return result;
 		}
 
@@ -338,8 +356,8 @@ namespace NP::Reconfiguration {
 			assert(destination_attachment);
 
 			// Only allow merges when both nodes haven't missed a deadline yet
-			return rating_graph->nodes[destination_attachment->index].rating != -1.0f &&
-				   rating_graph->nodes[parent_attachment->index].rating != 1.0f;
+			return rating_graph->nodes[destination_attachment->index].get_rating() != -1.0f &&
+				   rating_graph->nodes[parent_attachment->index].get_rating() != -1.0f;
 		}
 	};
 }

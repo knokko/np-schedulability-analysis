@@ -64,30 +64,30 @@ TEST_CASE("Rating graph + cutter") {
 	REQUIRE(rating_graph.nodes.size() == 11);
 
 	// Node 0 is the root, and can only take job 0
-	CHECK(rating_graph.nodes[0].rating == 0.5f);
+	CHECK(rating_graph.nodes[0].get_rating() == 0.5f);
 	REQUIRE(get_number_of_edges(rating_graph, 0) == 1);
 	REQUIRE(get_edge_destination(rating_graph, 0, 0) == 1); // Takes job 0 to node 1
 
 	// Node 1 can only take job 6
-	CHECK(rating_graph.nodes[1].rating == 0.5f);
+	CHECK(rating_graph.nodes[1].get_rating() == 0.5f);
 	REQUIRE(get_number_of_edges(rating_graph, 1) == 1);
 	REQUIRE(get_edge_destination(rating_graph, 1, 6) == 2); // Takes job 6 to node 2
 
 	// Node 2 can take either job 1 or job 8, where job 8 is a poor choice
-	CHECK(rating_graph.nodes[2].rating == 0.5f);
+	CHECK(rating_graph.nodes[2].get_rating() == 0.5f);
 	REQUIRE(get_number_of_edges(rating_graph, 2) == 2);
 
 	int failed_node_index = get_edge_destination(rating_graph, 2, 8);
-	CHECK(rating_graph.nodes[failed_node_index].rating == 0.0);
+	CHECK(rating_graph.nodes[failed_node_index].get_rating() == 0.0);
 	REQUIRE(get_number_of_edges(rating_graph, failed_node_index) == 0);
 
 	int right_node_index = get_edge_destination(rating_graph, 2, 1);
-	CHECK(rating_graph.nodes[right_node_index].rating == 1.0);
+	CHECK(rating_graph.nodes[right_node_index].get_rating() == 1.0);
 	REQUIRE(get_number_of_edges(rating_graph, right_node_index) == 1);
 	CHECK(get_edge_destination(rating_graph, right_node_index, 8) == 5);
 
 	for (int index = 5; index < rating_graph.nodes.size(); index++) {
-		CHECK(rating_graph.nodes[index].rating == 1.0);
+		CHECK(rating_graph.nodes[index].get_rating() == 1.0);
 
 		if (index != rating_graph.nodes.size() - 1) {
 			REQUIRE(get_number_of_edges(rating_graph, index) == 1);
@@ -164,7 +164,7 @@ TEST_CASE("Rating graph sanity 1") {
 	Reconfiguration::Rating_graph rating_graph;
 	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
 	rating_graph.generate_dot_file("test_rating_graph_sanity1_early.dot", problem, std::vector<Reconfiguration::Rating_graph_cut>());
-	REQUIRE(rating_graph.nodes[0].rating == 1.0);
+	REQUIRE(rating_graph.nodes[0].get_rating() == 1.0);
 	REQUIRE(get_number_of_edges(rating_graph, 0) == 1);
 
 	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
@@ -185,7 +185,7 @@ TEST_CASE("Rating graph sanity 2") {
 
 	Reconfiguration::Rating_graph rating_graph;
 	Reconfiguration::Agent_rating_graph<dtime_t>::generate(problem, rating_graph);
-	REQUIRE(rating_graph.nodes[0].rating < 1.0);
+	REQUIRE(rating_graph.nodes[0].get_rating() < 1.0);
 
 	auto cuts = Reconfiguration::cut_rating_graph(rating_graph);
 	rating_graph.generate_dot_file("test_rating_graph_sanity2.dot", problem, cuts);
